@@ -348,7 +348,8 @@ export default function App() {
       : '#f3f4f6 0% 100%';
 
     return (
-      <div className="p-5 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      // ▼ ここに pb-32 を追加し、メニューバーに隠れないように修正しました ▼
+      <div className="p-5 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="flex items-center justify-between bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100">
           <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
             <ChevronLeft size={24} />
