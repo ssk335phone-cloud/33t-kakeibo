@@ -115,52 +115,83 @@ const DEFAULT_CATEGORIES = [
   { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
+// --- 締め日計算ロジック ---
+const getMonthDateRange = (yearMonth, closingDate) => {
+  const [yearStr, monthStr] = yearMonth.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+
+  const formatD = (d) => `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+
+  if (!closingDate || closingDate === 'end' || closingDate === '0') {
+    const startD = new Date(year, month - 1, 1);
+    const endD = new Date(year, month, 0); // その月の末日
+    return { startDate: formatD(startD), endDate: formatD(endD) };
+  } else {
+    const cd = parseInt(closingDate, 10);
+    // 前月の (締め日 + 1) 日
+    const startD = new Date(year, month - 2, cd + 1);
+    // 当月の締め日
+    const endD = new Date(year, month - 1, cd);
+    return { startDate: formatD(startD), endDate: formatD(endD) };
+  }
+};
+
 // --- 再利用可能な年月選択コンポーネント ---
-const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext }) => {
+const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRangeText }) => {
   const year = parseInt(selectedMonth.split('-')[0], 10);
   const month = parseInt(selectedMonth.split('-')[1], 10);
   const currentYear = new Date().getFullYear();
-  // 今年から前後数年を選択肢にする
   const years = Array.from({length: 10}, (_, i) => currentYear - 5 + i);
   const months = Array.from({length: 12}, (_, i) => i + 1);
 
   return (
-    <div className="flex items-center justify-between bg-white px-3 py-3 rounded-2xl shadow-sm border border-gray-100 mb-6">
-      <button onClick={onPrev} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
-        <ChevronLeft size={20} />
-      </button>
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <select 
-            value={year} 
-            onChange={(e) => onMonthChange(`${e.target.value}-${month.toString().padStart(2, '0')}`)}
-            className="appearance-none bg-gray-50 border border-gray-200 font-bold text-gray-700 py-1.5 pl-3 pr-7 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
-          >
-            {years.map(y => <option key={y} value={y}>{y}年</option>)}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-            <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+    <div className="bg-white px-3 py-3 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col">
+      <div className="flex items-center justify-between w-full">
+        <button onClick={onPrev} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+          <ChevronLeft size={20} />
+        </button>
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <select 
+                value={year} 
+                onChange={(e) => onMonthChange(`${e.target.value}-${month.toString().padStart(2, '0')}`)}
+                className="appearance-none bg-gray-50 border border-gray-200 font-bold text-gray-700 py-1.5 pl-3 pr-7 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+              >
+                {years.map(y => <option key={y} value={y}>{y}年</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+              </div>
+            </div>
+            <div className="relative">
+              <select 
+                value={month} 
+                onChange={(e) => onMonthChange(`${year}-${e.target.value.padStart(2, '0')}`)}
+                className="appearance-none bg-gray-50 border border-gray-200 font-bold text-gray-700 py-1.5 pl-3 pr-7 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+              >
+                {months.map(m => <option key={m} value={m}>{m}月</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+              </div>
+            </div>
           </div>
+          {dateRangeText && (
+            <span className="text-[10px] text-gray-400 font-bold mt-1.5 bg-gray-50 px-2 py-0.5 rounded">
+              {dateRangeText}
+            </span>
+          )}
         </div>
-        <div className="relative">
-          <select 
-            value={month} 
-            onChange={(e) => onMonthChange(`${year}-${e.target.value.padStart(2, '0')}`)}
-            className="appearance-none bg-gray-50 border border-gray-200 font-bold text-gray-700 py-1.5 pl-3 pr-7 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
-          >
-            {months.map(m => <option key={m} value={m}>{m}月</option>)}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-            <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-          </div>
-        </div>
+        <button onClick={onNext} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+          <ChevronRight size={20} />
+        </button>
       </div>
-      <button onClick={onNext} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
-        <ChevronRight size={20} />
-      </button>
     </div>
   );
 };
+
 
 export default function App() {
   const [isPassphraseValid, setIsPassphraseValid] = useState(() => {
@@ -179,7 +210,8 @@ export default function App() {
     fixedAmount: 0,
     user1Name: 'あなた',
     user2Name: 'パートナー',
-    customCategories: [] 
+    customCategories: [],
+    closingDate: 'end'
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
@@ -243,7 +275,8 @@ export default function App() {
           fixedAmount: data.fixedAmount || 0,
           user1Name: data.user1Name || 'あなた',
           user2Name: data.user2Name || 'パートナー',
-          customCategories: data.customCategories || []
+          customCategories: data.customCategories || [],
+          closingDate: data.closingDate || 'end'
         });
       }
     }, (error) => console.error(error));
@@ -270,15 +303,25 @@ export default function App() {
     }
   };
 
+  const { startDate, endDate } = useMemo(() => {
+    return getMonthDateRange(selectedMonth, settings.closingDate);
+  }, [selectedMonth, settings.closingDate]);
+
+  const dateRangeText = `${startDate.replace(/-/g, '/')} 〜 ${endDate.replace(/-/g, '/')}`;
+
   const currentMonthTransactions = useMemo(() => {
-    return transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
-  }, [transactions, selectedMonth]);
+    return transactions.filter(t => t.date && t.date >= startDate && t.date <= endDate);
+  }, [transactions, startDate, endDate]);
 
   const stats = useMemo(() => {
     let total = 0;
     let u1Total = 0;
     let u2Total = 0;
     const categoryTotals = {};
+    
+    let defaultSplitTotal = 0; 
+    let customU1TargetSum = 0;
+    let customU2TargetSum = 0;
 
     currentMonthTransactions.forEach(t => {
       total += t.amount;
@@ -289,22 +332,37 @@ export default function App() {
         categoryTotals[t.categoryId] = 0;
       }
       categoryTotals[t.categoryId] += t.amount;
+
+      // 個別割り勘設定の適用
+      if (t.isCustomSplit) {
+        const tU1Target = Math.round(t.amount * ((t.customUser1Ratio ?? 50) / 100));
+        customU1TargetSum += tU1Target;
+        customU2TargetSum += (t.amount - tU1Target);
+      } else {
+        defaultSplitTotal += t.amount;
+      }
     });
 
     let u1Target = 0;
     let u2Target = 0;
 
+    // 全体ルールを「デフォルト設定の支出合計」に適用
     if (settings.splitMethod === 'ratio') {
-      u1Target = Math.round(total * (settings.user1Ratio / 100));
-      u2Target = total - u1Target;
+      const baseU1Target = Math.round(defaultSplitTotal * (settings.user1Ratio / 100));
+      u1Target = baseU1Target + customU1TargetSum;
+      u2Target = (defaultSplitTotal - baseU1Target) + customU2TargetSum;
     } else {
+      let baseU1Target = 0;
+      let baseU2Target = 0;
       if (settings.fixedPayer === 'user1') {
-        u1Target = Math.min(settings.fixedAmount, total);
-        u2Target = total - u1Target;
+        baseU1Target = Math.min(settings.fixedAmount, defaultSplitTotal);
+        baseU2Target = defaultSplitTotal - baseU1Target;
       } else {
-        u2Target = Math.min(settings.fixedAmount, total);
-        u1Target = total - u2Target;
+        baseU2Target = Math.min(settings.fixedAmount, defaultSplitTotal);
+        baseU1Target = defaultSplitTotal - baseU2Target;
       }
+      u1Target = baseU1Target + customU1TargetSum;
+      u2Target = baseU2Target + customU2TargetSum;
     }
 
     const u1Diff = u1Total - u1Target;
@@ -386,12 +444,12 @@ export default function App() {
 
     return (
       <div className="p-5 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        
         <MonthSelector 
           selectedMonth={selectedMonth} 
           onMonthChange={setSelectedMonth} 
           onPrev={handlePrevMonth} 
           onNext={handleNextMonth} 
+          dateRangeText={dateRangeText}
         />
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -530,6 +588,10 @@ export default function App() {
     const [categoryId, setCategoryId] = useState(txToEdit ? txToEdit.categoryId : 'food');
     const [memo, setMemo] = useState(txToEdit ? txToEdit.memo : '');
     const [isSaving, setIsSaving] = useState(false);
+    
+    // 個別割り勘用のステート
+    const [isCustomSplit, setIsCustomSplit] = useState(txToEdit ? !!txToEdit.isCustomSplit : false);
+    const [customUser1Ratio, setCustomUser1Ratio] = useState(txToEdit && txToEdit.customUser1Ratio !== undefined ? txToEdit.customUser1Ratio : settings.user1Ratio);
 
     useEffect(() => {
       if (!isEdit && copyTemplate) {
@@ -548,13 +610,19 @@ export default function App() {
       }
       setIsSaving(true);
       try {
+        const payload = {
+          date,
+          amount: Number(amount),
+          paidBy,
+          categoryId,
+          memo,
+          isCustomSplit,
+          customUser1Ratio: isCustomSplit ? Number(customUser1Ratio) : null,
+        };
+
         if (isEdit) {
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', txToEdit.id), {
-            date,
-            amount: Number(amount),
-            paidBy,
-            categoryId,
-            memo,
+            ...payload,
             updatedAt: Date.now()
           });
           showToast('記録を更新しました');
@@ -562,15 +630,23 @@ export default function App() {
           setActiveTab('history');
         } else {
           await addDoc(txCollection, {
-            date,
-            amount: Number(amount),
-            paidBy,
-            categoryId,
-            memo,
+            ...payload,
             createdAt: Date.now()
           });
           showToast('記録を保存しました');
-          setSelectedMonth(date.slice(0, 7));
+          
+          const txDate = new Date(date);
+          const d = txDate.getDate();
+          let targetMonth = txDate.toISOString().slice(0, 7);
+          
+          if (settings.closingDate !== 'end' && settings.closingDate !== '0') {
+            const cd = parseInt(settings.closingDate, 10);
+            if (d > cd) {
+              const nextM = new Date(txDate.getFullYear(), txDate.getMonth() + 1, 1);
+              targetMonth = nextM.toISOString().slice(0, 7);
+            }
+          }
+          setSelectedMonth(targetMonth);
           setActiveTab('home');
         }
       } catch (error) {
@@ -630,6 +706,43 @@ export default function App() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 個別割り勘設定 */}
+          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">この支出だけ割り勘割合を変更する</label>
+              <button
+                type="button"
+                onClick={() => setIsCustomSplit(!isCustomSplit)}
+                className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner ${isCustomSplit ? 'bg-teal-500' : 'bg-gray-300'}`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${isCustomSplit ? 'translate-x-7' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            
+            {isCustomSplit && (
+              <div className="mt-5 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="flex-1 text-center">
+                    <p className="text-xs font-bold text-teal-600 mb-1">{users.user1.name}</p>
+                    <div className="text-xl font-bold text-gray-800">{customUser1Ratio}%</div>
+                  </div>
+                  <span className="font-bold text-gray-300">:</span>
+                  <div className="flex-1 text-center">
+                    <p className="text-xs font-bold text-rose-500 mb-1">{users.user2.name}</p>
+                    <div className="text-xl font-bold text-gray-800">{100 - customUser1Ratio}%</div>
+                  </div>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" max="100" 
+                  value={customUser1Ratio} 
+                  onChange={(e) => setCustomUser1Ratio(Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500 mt-2"
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -695,14 +808,12 @@ export default function App() {
   };
 
   const HistoryView = () => {
-    const [historyTab, setHistoryTab] = useState('list'); // 'list' or 'report'
+    const [historyTab, setHistoryTab] = useState('list');
     const [reportYear, setReportYear] = useState(new Date().getFullYear());
     const [reportCategory, setReportCategory] = useState('all');
 
-    // リスト表示用のデータ（選択月のみ）
     const displayData = useMemo(() => {
-      const currentMonthTx = transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
-      const sorted = [...currentMonthTx];
+      const sorted = [...currentMonthTransactions];
       
       if (historySortMode === 'date-desc' || historySortMode === 'date-asc') {
         const isDesc = historySortMode === 'date-desc';
@@ -728,17 +839,16 @@ export default function App() {
         const formatCat = (catId) => categories.find(c => c.id === catId)?.name || 'その他';
         return { type: 'grouped', data: groups, formatKey: formatCat };
       }
-    }, [transactions, selectedMonth, historySortMode, categories]);
+    }, [currentMonthTransactions, historySortMode, categories]);
 
-    // レポート（グラフ）用のデータ計算
     const reportData = useMemo(() => {
       const data = [];
       let maxAmount = 0;
 
       for (let i = 1; i <= 12; i++) {
         const monthStr = i.toString().padStart(2, '0');
-        const currMonthPrefix = `${reportYear}-${monthStr}`;
-        const prevMonthPrefix = `${reportYear - 1}-${monthStr}`;
+        const currMonthRange = getMonthDateRange(`${reportYear}-${monthStr}`, settings.closingDate);
+        const prevMonthRange = getMonthDateRange(`${reportYear - 1}-${monthStr}`, settings.closingDate);
 
         let currTotal = 0;
         let prevTotal = 0;
@@ -746,8 +856,8 @@ export default function App() {
         transactions.forEach(t => {
           if (!t.date) return;
           if (reportCategory !== 'all' && t.categoryId !== reportCategory) return;
-          if (t.date.startsWith(currMonthPrefix)) currTotal += t.amount;
-          if (t.date.startsWith(prevMonthPrefix)) prevTotal += t.amount;
+          if (t.date >= currMonthRange.startDate && t.date <= currMonthRange.endDate) currTotal += t.amount;
+          if (t.date >= prevMonthRange.startDate && t.date <= prevMonthRange.endDate) prevTotal += t.amount;
         });
 
         if (currTotal > maxAmount) maxAmount = currTotal;
@@ -756,7 +866,7 @@ export default function App() {
         data.push({ month: i, currTotal, prevTotal });
       }
       return { data, maxAmount: maxAmount === 0 ? 1 : maxAmount }; 
-    }, [transactions, reportYear, reportCategory]);
+    }, [transactions, reportYear, reportCategory, settings.closingDate]);
 
     const handleCopy = (tx) => {
       setCopyTemplate(tx);
@@ -790,11 +900,16 @@ export default function App() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-800 truncate">{t.memo || cat.name}</p>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-xs text-gray-500 font-medium">{t.date.replace(/-/g, '/')}</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full ${user?.lightColor || 'bg-gray-100'}`}>
                 {user?.name || '不明'}
               </span>
+              {t.isCustomSplit && (
+                <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold border border-indigo-100">
+                  個別割合
+                </span>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -832,7 +947,6 @@ export default function App() {
     return (
       <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
         
-        {/* サブタブの切り替え */}
         <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
           <button 
             onClick={() => setHistoryTab('list')}
@@ -848,15 +962,14 @@ export default function App() {
           </button>
         </div>
 
-        {/* ---------------- リスト表示モード ---------------- */}
         {historyTab === 'list' && (
           <div className="animate-in fade-in">
-            {/* 月切り替え (リスト用) */}
             <MonthSelector 
               selectedMonth={selectedMonth} 
               onMonthChange={setSelectedMonth} 
               onPrev={handlePrevMonth} 
               onNext={handleNextMonth} 
+              dateRangeText={dateRangeText}
             />
 
             <div className="flex justify-end mb-4">
@@ -905,10 +1018,8 @@ export default function App() {
           </div>
         )}
 
-        {/* ---------------- レポート（グラフ）表示モード ---------------- */}
         {historyTab === 'report' && (
           <div className="space-y-6 animate-in fade-in">
-            {/* グラフの設定（年・カテゴリ） */}
             <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-4">
               <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
                 <button onClick={() => setReportYear(y => y - 1)} className="p-1 hover:bg-white rounded-lg transition-colors text-gray-500">
@@ -933,23 +1044,20 @@ export default function App() {
               </div>
             </div>
 
-            {/* 棒グラフ領域 */}
             <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="flex items-center justify-end gap-4 mb-4 text-[10px] font-bold text-gray-500">
                 <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div>昨年 ({reportYear - 1})</div>
                 <div className="flex items-center gap-1"><div className="w-3 h-3 bg-teal-500 rounded-sm"></div>今年 ({reportYear})</div>
               </div>
 
-              {/* 横スクロール可能なグラフコンテナ */}
               <div className="flex items-end gap-3 h-48 overflow-x-auto pb-2 pt-4 px-1 snap-x no-scrollbar">
                 {reportData.data.map(d => {
                   const currH = reportData.maxAmount > 1 ? (d.currTotal / reportData.maxAmount) * 100 : 0;
                   const prevH = reportData.maxAmount > 1 ? (d.prevTotal / reportData.maxAmount) * 100 : 0;
                   return (
                     <div key={d.month} className="flex flex-col items-center gap-2 snap-center min-w-[36px]">
-                      {/* グラフのバー部分（h-full を追加して高さ計算を正常化） */}
                       <div className="flex items-end gap-1 h-32 w-full justify-center">
-                        <div className="w-3 h-full bg-gray-100 rounded-t-sm relative group flex items-end">
+                        <div className="w-3 h-full bg-gray-50 rounded-t-sm relative group flex items-end">
                           <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] bg-gray-800 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
                             ¥{d.prevTotal.toLocaleString()}
                           </div>
@@ -969,17 +1077,16 @@ export default function App() {
               </div>
             </div>
 
-            {/* グラフ下の詳細リスト */}
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                 <span className="text-xs font-bold text-gray-500">月ごとの詳細比較</span>
               </div>
               <div className="divide-y divide-gray-50 max-h-60 overflow-y-auto">
                 {reportData.data.slice().reverse().map(d => {
-                  if (d.currTotal === 0 && d.prevTotal === 0) return null; // 両方0の月は省略
+                  if (d.currTotal === 0 && d.prevTotal === 0) return null; 
                   const diff = d.currTotal - d.prevTotal;
                   return (
-                    <div key={d.month} className="p-4 flex items-center justify-between">
+                    <div key={d.month} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                       <div className="font-bold text-gray-700 w-10">{d.month}月</div>
                       <div className="flex-1 px-4">
                         <div className="flex justify-between text-xs mb-1">
@@ -993,7 +1100,7 @@ export default function App() {
                       </div>
                       <div className="w-20 text-right flex flex-col items-end justify-center">
                         <span className="text-[9px] text-gray-400 mb-0.5">昨年比</span>
-                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${diff > 0 ? 'bg-red-50 text-red-600' : diff < 0 ? 'bg-blue-50 text-blue-600' : 'text-gray-400'}`}>
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${diff > 0 ? 'bg-red-50 text-red-600' : diff < 0 ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
                           {diff > 0 ? '+' : ''}{diff === 0 ? '±0' : diff.toLocaleString()}
                         </span>
                       </div>
@@ -1039,7 +1146,18 @@ export default function App() {
         );
         await Promise.all(promises);
         showToast('今月分の固定費を一括登録しました！');
-        setSelectedMonth(today.slice(0, 7));
+        
+        const txDate = new Date(today);
+        const d = txDate.getDate();
+        let targetMonth = txDate.toISOString().slice(0, 7);
+        if (settings.closingDate !== 'end' && settings.closingDate !== '0') {
+          const cd = parseInt(settings.closingDate, 10);
+          if (d > cd) {
+            const nextM = new Date(txDate.getFullYear(), txDate.getMonth() + 1, 1);
+            targetMonth = nextM.toISOString().slice(0, 7);
+          }
+        }
+        setSelectedMonth(targetMonth);
         setActiveTab('home');
       } catch (e) {
         console.error(e);
@@ -1200,13 +1318,13 @@ export default function App() {
     const [ratio, setRatio] = useState(settings.user1Ratio);
     const [fixedPayer, setFixedPayer] = useState(settings.fixedPayer);
     const [amount, setAmount] = useState(settings.fixedAmount);
+    const [closingDate, setClosingDate] = useState(settings.closingDate || 'end');
     
     const [u1Name, setU1Name] = useState(settings.user1Name || 'あなた');
     const [u2Name, setU2Name] = useState(settings.user2Name || 'パートナー');
     
     const [isSaving, setIsSaving] = useState(false);
 
-    // カスタムジャンル用ステート
     const [newCatName, setNewCatName] = useState('');
     const [newCatIcon, setNewCatIcon] = useState('Gift');
     const [newCatColor, setNewCatColor] = useState(COLOR_PRESETS[0]);
@@ -1221,13 +1339,14 @@ export default function App() {
       setIsSaving(true);
       try {
         await setDoc(settingsDocRef, {
-          ...settings, // 既存のカスタムカテゴリ等を消さないため
+          ...settings, 
           splitMethod: method,
           user1Ratio: Number(ratio),
           fixedPayer,
           fixedAmount: Number(amount),
           user1Name: u1Name,
-          user2Name: u2Name
+          user2Name: u2Name,
+          closingDate
         });
         showToast('設定を保存しました');
       } catch (e) {
@@ -1291,11 +1410,33 @@ export default function App() {
           各種設定
         </h2>
 
+        {/* --- 締め日の設定 --- */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
+          <h3 className="font-bold text-gray-700 mb-4 text-sm">家計簿の締め日</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">毎月の締め日</label>
+              <select 
+                value={closingDate}
+                onChange={(e) => setClosingDate(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
+              >
+                <option value="end">月末締め</option>
+                {Array.from({length: 28}, (_, i) => i + 1).map(d => (
+                  <option key={d} value={d.toString()}>{d}日締め</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                例：「25日締め」に設定すると、前月26日〜当月25日の出費が1ヶ月分として集計されます。
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* --- カスタムジャンルの追加 --- */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
           <h3 className="font-bold text-gray-700 mb-4 text-sm">オリジナルジャンル</h3>
           
-          {/* 追加済みのジャンル一覧 */}
           {settings.customCategories && settings.customCategories.length > 0 && (
             <div className="mb-6 space-y-2">
               <label className="block text-xs text-gray-500 mb-2">追加済みのジャンル</label>
@@ -1371,7 +1512,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* プレビュー表示 */}
               <div className="mt-4 flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
                 <div className="text-xs text-gray-500 font-bold w-16">プレビュー</div>
                 <div className={`p-2 rounded-full ${newCatColor.color}`}>
