@@ -20,7 +20,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  PieChart
+  PieChart,
+  Lock
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -38,24 +39,21 @@ const customFirebaseConfig = {
   appId: "1:70416192251:web:83d3899b958769460a565e"
 };
 
-// プレビュー環境(Canvas)かどうかを判定し、適切な設定を使用
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : customFirebaseConfig;
 
-// Firebaseの初期化
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// アプリID
 const appId = typeof __app_id !== 'undefined' ? __app_id : '33t-kakeibo';
 
-// データベースの保存先パス
 const txCollection = collection(db, 'artifacts', appId, 'public', 'data', 'transactions');
 const fixedCollection = collection(db, 'artifacts', appId, 'public', 'data', 'fixedExpenses');
 const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'appSettings', 'general');
 
-// --- 定数設定 ---
-// ドーナツチャート描画用に hexColor を追加
+// 🔒 【重要】お二人だけの秘密の合言葉（ここで変更できます）
+const SECRET_PASSPHRASE = "!1214083120190322";
+
 const CATEGORIES = [
   { id: 'food', name: '食費', icon: Utensils, color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
   { id: 'daily', name: '日用品', icon: ShoppingCart, color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
@@ -67,11 +65,18 @@ const CATEGORIES = [
 ];
 
 export default function App() {
+  // --- セキュリティ（合言葉）ステート ---
+  // localStorageに保存された合言葉が一致しているかチェック
+  const [isPassphraseValid, setIsPassphraseValid] = useState(() => {
+    return localStorage.getItem('shareloo_passphrase') === SECRET_PASSPHRASE;
+  });
+  const [passphraseInput, setPassphraseInput] = useState('');
+  const [loginError, setLoginError] = useState(false);
+
+  // --- 既存のステート ---
   const [activeTab, setActiveTab] = useState('home');
   const [transactions, setTransactions] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
-  
-  // 設定にメンバー名の項目を追加
   const [settings, setSettings] = useState({ 
     splitMethod: 'ratio', 
     user1Ratio: 50, 
@@ -80,22 +85,20 @@ export default function App() {
     user1Name: 'あなた',
     user2Name: 'パートナー'
   });
-  
-  // 表示している月（YYYY-MM形式）
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  
   const [copyTemplate, setCopyTemplate] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
   const [user, setUser] = useState(null);
 
-  // --- ユーザー情報の動的生成 ---
   const users = useMemo(() => ({
     user1: { id: 'user1', name: settings.user1Name || 'あなた', color: 'bg-teal-500', lightColor: 'bg-teal-100 text-teal-700' },
     user2: { id: 'user2', name: settings.user2Name || 'パートナー', color: 'bg-rose-400', lightColor: 'bg-rose-100 text-rose-700' }
   }), [settings.user1Name, settings.user2Name]);
 
-  // --- Firebase 認証とデータ取得 ---
+  // --- Firebase 認証とデータ取得（合言葉がOKな場合のみ実行） ---
   useEffect(() => {
+    if (!isPassphraseValid) return; // 合言葉が認証されるまではFirebaseに接続しない
+
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -105,9 +108,6 @@ export default function App() {
         }
       } catch (error) {
         console.error("Authentication failed:", error);
-        if (error.code === 'auth/configuration-not-found') {
-          setToastMessage('⚠️ Firebaseコンソールで「匿名認証」を有効にしてください');
-        }
       }
     };
     initAuth();
@@ -117,10 +117,10 @@ export default function App() {
     });
 
     return () => unsubscribeAuth();
-  }, []);
+  }, [isPassphraseValid]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isPassphraseValid) return;
 
     const unsubTx = onSnapshot(txCollection, (snapshot) => {
       const txData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -143,15 +143,6 @@ export default function App() {
           user1Name: data.user1Name || 'あなた',
           user2Name: data.user2Name || 'パートナー'
         });
-      } else {
-        setSettings({ 
-          splitMethod: 'ratio', 
-          user1Ratio: 50, 
-          fixedPayer: 'user1', 
-          fixedAmount: 0,
-          user1Name: 'あなた',
-          user2Name: 'パートナー'
-        });
       }
     }, (error) => console.error(error));
 
@@ -160,16 +151,25 @@ export default function App() {
       unsubFixed();
       unsubSettings();
     };
-  }, [user]);
+  }, [user, isPassphraseValid]);
 
   const showToast = (message) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(''), 3000);
   };
 
+  // --- ログイン処理 ---
+  const handleLogin = () => {
+    if (passphraseInput === SECRET_PASSPHRASE) {
+      localStorage.setItem('shareloo_passphrase', passphraseInput);
+      setIsPassphraseValid(true);
+    } else {
+      setLoginError(true);
+      setTimeout(() => setLoginError(false), 2000);
+    }
+  };
+
   // --- 計算ロジック ---
-  
-  // 選択された月だけのトランザクションを抽出
   const currentMonthTransactions = useMemo(() => {
     return transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
   }, [transactions, selectedMonth]);
@@ -216,7 +216,6 @@ export default function App() {
     return { total, u1Total, u2Total, u1Target, u2Target, u1Diff, categoryTotals: sortedCategoryTotals };
   }, [currentMonthTransactions, settings]);
 
-  // --- 月の切り替え操作 ---
   const handlePrevMonth = () => {
     const d = new Date(selectedMonth + '-01');
     d.setMonth(d.getMonth() - 1);
@@ -234,11 +233,50 @@ export default function App() {
     return `${y}年${parseInt(m, 10)}月`;
   };
 
-  // --- 画面コンポーネント ---
+  // ==========================================
+  // 🔒 ロック（合言葉入力）画面
+  // ==========================================
+  if (!isPassphraseValid) {
+    return (
+      <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden font-sans text-gray-800 flex items-center justify-center p-5">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-2">
+            <Lock className="text-teal-600" size={28} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-gray-800 mb-2">33T家計簿</h1>
+            <p className="text-sm text-gray-500 font-medium leading-relaxed">
+              プライベートな家計簿です。<br/>お二人で決めた合言葉を入力してください。
+            </p>
+          </div>
+          
+          <div className="space-y-4 pt-4">
+            <input
+              type="password"
+              value={passphraseInput}
+              onChange={(e) => setPassphraseInput(e.target.value)}
+              placeholder="合言葉を入力"
+              className={`w-full p-4 bg-gray-50 border ${loginError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-200 focus:ring-teal-500'} rounded-2xl focus:ring-2 focus:outline-none transition-all text-center font-bold tracking-widest text-lg`}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            />
+            {loginError && <p className="text-red-500 text-xs font-bold animate-pulse">合言葉が間違っています</p>}
+            
+            <button
+              onClick={handleLogin}
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98]"
+            >
+              ロックを解除する
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  // 1. ホーム画面
+  // ==========================================
+  // メイン画面（認証済み）
+  // ==========================================
   const HomeView = () => {
-    // ドーナツチャートのグラデーション文字列生成
     let cumulativePercent = 0;
     const gradientStops = stats.categoryTotals.length > 0 
       ? stats.categoryTotals.map(c => {
@@ -249,12 +287,10 @@ export default function App() {
           cumulativePercent += percent;
           return `${cat?.hexColor || '#ccc'} ${start}% ${end}%`;
         }).join(', ')
-      : '#f3f4f6 0% 100%'; // データがない場合はグレー
+      : '#f3f4f6 0% 100%';
 
     return (
       <div className="p-5 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        
-        {/* 月切り替えナビゲーション */}
         <div className="flex items-center justify-between bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100">
           <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
             <ChevronLeft size={24} />
@@ -273,7 +309,6 @@ export default function App() {
             ¥{stats.total.toLocaleString()}
           </div>
 
-          {/* 負担割合バー */}
           <div className="relative h-4 w-full bg-gray-100 rounded-full overflow-hidden flex mb-3">
             <div 
               className={`h-full ${users.user1.color} transition-all duration-500`} 
@@ -311,7 +346,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* 精算エリア */}
         <div className="bg-teal-50 p-5 rounded-3xl border border-teal-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-white rounded-full text-teal-600 shadow-sm">
@@ -336,7 +370,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* ジャンル別支出 (ドーナツチャート) */}
         {stats.categoryTotals.length > 0 && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
             <h3 className="font-bold text-gray-800 mb-6 text-sm flex items-center gap-2">
@@ -345,7 +378,6 @@ export default function App() {
             </h3>
             
             <div className="flex items-center justify-center mb-8">
-              {/* ドーナツチャート本体 */}
               <div 
                 className="w-40 h-40 rounded-full flex items-center justify-center relative transition-all duration-1000 ease-out"
                 style={{ background: `conic-gradient(${gradientStops})` }}
@@ -385,7 +417,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 支出がない場合のEmpty State */}
         {stats.total === 0 && (
           <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -399,7 +430,6 @@ export default function App() {
     );
   };
 
-  // 2. 入力画面
   const AddTransactionView = () => {
     const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
     const [amount, setAmount] = useState('');
@@ -452,7 +482,6 @@ export default function App() {
         </h2>
 
         <div className="space-y-6">
-          {/* 金額入力 */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-2">金額</label>
             <div className="relative">
@@ -467,7 +496,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* 支払者選択 */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-2">誰が支払った？</label>
             <div className="flex gap-3">
@@ -487,7 +515,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* カテゴリ選択 */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-2">ジャンル</label>
             <div className="grid grid-cols-4 gap-3">
@@ -514,7 +541,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* 日付と詳細 */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-2">日付</label>
             <input 
@@ -548,9 +574,7 @@ export default function App() {
     );
   };
 
-  // 3. 履歴画面
   const HistoryView = () => {
-    // 履歴を月ごとにグループ化する
     const groupedTx = useMemo(() => {
       const groups = {};
       const sorted = transactions.slice().sort((a, b) => {
@@ -560,7 +584,7 @@ export default function App() {
       
       sorted.forEach(t => {
         if (!t.date) return;
-        const month = t.date.slice(0, 7); // YYYY-MM
+        const month = t.date.slice(0, 7);
         if (!groups[month]) groups[month] = [];
         groups[month].push(t);
       });
@@ -599,7 +623,6 @@ export default function App() {
           <div className="space-y-8">
             {Object.keys(groupedTx).sort((a, b) => b.localeCompare(a)).map(month => (
               <div key={month} className="space-y-3">
-                {/* 月ごとのヘッダー */}
                 <h3 className="font-bold text-gray-500 text-sm border-b border-gray-200 pb-2 mb-4 sticky top-0 bg-gray-50/90 backdrop-blur z-10">
                   {formatMonth(month)}
                 </h3>
@@ -628,7 +651,6 @@ export default function App() {
                           ¥{t.amount.toLocaleString()}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          {/* コピーボタン */}
                           <button 
                             onClick={() => handleCopy(t)}
                             className="text-xs flex items-center gap-1 text-teal-600 bg-teal-50 px-2 py-1 rounded-lg hover:bg-teal-100 transition-colors"
@@ -636,7 +658,6 @@ export default function App() {
                             <Copy size={12} />
                             コピー
                           </button>
-                          {/* 削除ボタン */}
                           <button 
                             onClick={() => handleDeleteTx(t.id)}
                             className="text-xs flex items-center justify-center text-red-400 bg-red-50 p-1.5 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors"
@@ -656,7 +677,6 @@ export default function App() {
     );
   };
 
-  // 4. 固定費画面
   const FixedExpensesView = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [newAmount, setNewAmount] = useState('');
@@ -841,14 +861,12 @@ export default function App() {
     );
   };
 
-  // 5. 設定画面
   const SettingsView = () => {
     const [method, setMethod] = useState(settings.splitMethod);
     const [ratio, setRatio] = useState(settings.user1Ratio);
     const [fixedPayer, setFixedPayer] = useState(settings.fixedPayer);
     const [amount, setAmount] = useState(settings.fixedAmount);
     
-    // 追加: メンバーの名前を変更するためのステート
     const [u1Name, setU1Name] = useState(settings.user1Name || 'あなた');
     const [u2Name, setU2Name] = useState(settings.user2Name || 'パートナー');
     
@@ -885,7 +903,6 @@ export default function App() {
           各種設定
         </h2>
 
-        {/* メンバー名の設定セクションを追加 */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
           <h3 className="font-bold text-gray-700 mb-4 text-sm">メンバーの名前</h3>
           <div className="space-y-4">
@@ -912,7 +929,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* 既存の割り勘ルール設定 */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
           <h3 className="font-bold text-gray-700 mb-4 text-sm">割り勘のルール</h3>
           <div className="flex gap-2 mb-8 p-1.5 bg-gray-100 rounded-2xl">
@@ -1008,7 +1024,6 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden font-sans text-gray-800 flex flex-col">
-      {/* ヘッダー */}
       <header className="bg-white/80 backdrop-blur-md pt-12 pb-4 px-5 sticky top-0 z-10 border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-teal-200">
@@ -1018,7 +1033,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* メインコンテンツエリア */}
       <main className="flex-1 overflow-y-auto">
         {activeTab === 'home' && <HomeView />}
         {activeTab === 'add' && <AddTransactionView />}
@@ -1027,7 +1041,6 @@ export default function App() {
         {activeTab === 'settings' && <SettingsView />}
       </main>
 
-      {/* カスタムToast通知 */}
       {toastMessage && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium z-50 animate-in fade-in slide-in-from-top-4 flex items-center gap-2">
           <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -1035,7 +1048,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ボトムナビゲーション */}
       <nav className="bg-white border-t border-gray-100 pb-safe absolute bottom-0 w-full z-20">
         <div className="flex justify-around items-center h-20 px-1 pb-2">
           <button 
