@@ -230,7 +230,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
             <div className="flex justify-between text-[11px] mb-1.5">
               <span className="text-gray-500 font-bold">予算: ¥{settings.monthlyBudget.toLocaleString()}</span>
               <span className={`font-bold ${stats.total > settings.monthlyBudget ? 'text-red-500' : 'text-teal-600'}`}>
-                {stats.total > settings.monthlyBudget ? '予算オーバー' : `残り ¥${(settings.monthlyBudget - stats.total).toLocaleString()}`}
+                {stats.total > settings.monthlyBudget ? `¥${(stats.total - settings.monthlyBudget).toLocaleString()} オーバー` : `残り ¥${(settings.monthlyBudget - stats.total).toLocaleString()}`}
               </span>
             </div>
             <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
