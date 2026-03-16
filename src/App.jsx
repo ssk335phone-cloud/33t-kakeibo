@@ -42,7 +42,8 @@ import {
   Shirt,
   Pill,
   Smile,
-  Baby
+  Baby,
+  Leaf
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -1816,7 +1817,7 @@ export default function App() {
             <Lock className="text-teal-600" size={28} />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-gray-800 mb-2">33T家計簿</h1>
+            <h1 className="text-2xl font-black tracking-tight text-gray-800 mb-2">ささっと家計簿</h1>
             <p className="text-sm text-gray-500 font-medium leading-relaxed">
               プライベートな家計簿です。<br/>お二人で決めた合言葉を入力してください。
             </p>
@@ -1849,10 +1850,10 @@ export default function App() {
     <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden font-sans text-gray-800 flex flex-col">
       <header className="bg-white/80 backdrop-blur-md pt-12 pb-4 px-5 sticky top-0 z-10 border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-teal-200">
-            3
+          <div className="w-8 h-8 bg-teal-500 rounded-xl flex items-center justify-center text-white font-bold shadow-sm shadow-teal-200">
+            <Leaf size={20} strokeWidth={2.5} />
           </div>
-          <h1 className="text-xl font-black tracking-tight text-gray-800">33T家計簿</h1>
+          <h1 className="text-xl font-black tracking-tight text-gray-800">ささっと家計簿</h1>
         </div>
       </header>
 
