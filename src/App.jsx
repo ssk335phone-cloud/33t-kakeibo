@@ -24,6 +24,7 @@ import {
   Lock,
   Pencil,
   ArrowUpDown,
+  BarChart3,
   Coffee, 
   Droplets, 
   Smartphone, 
@@ -74,14 +75,12 @@ const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'appSetting
 const SECRET_PASSPHRASE = "!1214083120190322";
 
 // --- アイコンとカラーの設定 ---
-// カスタムジャンルで選択できるアイコン一覧
 const ICON_MAP = {
   Utensils, ShoppingCart, HomeIcon, Zap, Heart, Train, MoreHorizontal,
   Coffee, Droplets, Smartphone, Dog, PartyPopper, Car, Plane, Gift, 
   Monitor, Book, Music, Film, Scissors, Shirt, Pill, Smile, Baby
 };
 
-// カスタムジャンルで選択できるテーマカラー一覧
 const COLOR_PRESETS = [
   { color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
   { color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
@@ -101,13 +100,12 @@ const COLOR_PRESETS = [
   { color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
-// デフォルトのジャンル一覧
 const DEFAULT_CATEGORIES = [
   { id: 'food', name: '食費', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
   { id: 'eatout', name: '外食費', iconName: 'Coffee', color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
   { id: 'daily', name: '日用品', iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
   { id: 'rent', name: '家賃', iconName: 'HomeIcon', color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
-  { id: 'utility', name: '光熱費', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
+  { id: 'utility', name: '電気・ガス', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
   { id: 'water', name: '水道代', iconName: 'Droplets', color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
   { id: 'telecom', name: '通信費', iconName: 'Smartphone', color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
   { id: 'dog', name: 'お犬', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
@@ -134,7 +132,7 @@ export default function App() {
     fixedAmount: 0,
     user1Name: 'あなた',
     user2Name: 'パートナー',
-    customCategories: [] // カスタムジャンル保存用
+    customCategories: [] 
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
@@ -148,12 +146,10 @@ export default function App() {
     user2: { id: 'user2', name: settings.user2Name || 'パートナー', color: 'bg-rose-400', lightColor: 'bg-rose-100 text-rose-700' }
   }), [settings.user1Name, settings.user2Name]);
 
-  // デフォルトとカスタムジャンルを結合
   const categories = useMemo(() => {
     return [...DEFAULT_CATEGORIES, ...(settings.customCategories || [])];
   }, [settings.customCategories]);
 
-  // --- Firebase 認証とデータ取得 ---
   useEffect(() => {
     if (!isPassphraseValid) return;
 
@@ -227,7 +223,6 @@ export default function App() {
     }
   };
 
-  // --- 計算ロジック ---
   const currentMonthTransactions = useMemo(() => {
     return transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
   }, [transactions, selectedMonth]);
@@ -292,7 +287,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 🔒 ロック（合言葉入力）画面
+  // 🔒 ロック画面
   // ==========================================
   if (!isPassphraseValid) {
     return (
@@ -332,7 +327,7 @@ export default function App() {
   }
 
   // ==========================================
-  // メイン画面（認証済み）
+  // メイン画面
   // ==========================================
   const HomeView = () => {
     let cumulativePercent = 0;
@@ -348,7 +343,6 @@ export default function App() {
       : '#f3f4f6 0% 100%';
 
     return (
-      // ▼ ここに pb-32 を追加し、メニューバーに隠れないように修正しました ▼
       <div className="p-5 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="flex items-center justify-between bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100">
           <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
@@ -663,8 +657,14 @@ export default function App() {
   };
 
   const HistoryView = () => {
+    const [historyTab, setHistoryTab] = useState('list'); // 'list' or 'report'
+    const [reportYear, setReportYear] = useState(new Date().getFullYear());
+    const [reportCategory, setReportCategory] = useState('all');
+
+    // リスト表示用のデータ（選択月のみ）
     const displayData = useMemo(() => {
-      const sorted = [...transactions];
+      const currentMonthTx = transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
+      const sorted = [...currentMonthTx];
       
       if (historySortMode === 'date-desc' || historySortMode === 'date-asc') {
         const isDesc = historySortMode === 'date-desc';
@@ -672,14 +672,7 @@ export default function App() {
           if (a.date !== b.date) return isDesc ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
           return isDesc ? (b.createdAt || 0) - (a.createdAt || 0) : (a.createdAt || 0) - (b.createdAt || 0);
         });
-        const groups = {};
-        sorted.forEach(t => {
-          if (!t.date) return;
-          const month = t.date.slice(0, 7);
-          if (!groups[month]) groups[month] = [];
-          groups[month].push(t);
-        });
-        return { type: 'grouped', data: groups, formatKey: formatMonth };
+        return { type: 'flat', data: sorted };
         
       } else if (historySortMode === 'amount-desc' || historySortMode === 'amount-asc') {
         const isDesc = historySortMode === 'amount-desc';
@@ -687,7 +680,6 @@ export default function App() {
         return { type: 'flat', data: sorted };
         
       } else if (historySortMode === 'category') {
-        // 同じカテゴリ内は新しい順
         sorted.sort((a, b) => new Date(b.date) - new Date(a.date) || (b.createdAt || 0) - (a.createdAt || 0)); 
         const groups = {};
         sorted.forEach(t => {
@@ -698,7 +690,35 @@ export default function App() {
         const formatCat = (catId) => categories.find(c => c.id === catId)?.name || 'その他';
         return { type: 'grouped', data: groups, formatKey: formatCat };
       }
-    }, [transactions, historySortMode, categories]);
+    }, [transactions, selectedMonth, historySortMode, categories]);
+
+    // レポート（グラフ）用のデータ計算
+    const reportData = useMemo(() => {
+      const data = [];
+      let maxAmount = 0;
+
+      for (let i = 1; i <= 12; i++) {
+        const monthStr = i.toString().padStart(2, '0');
+        const currMonthPrefix = `${reportYear}-${monthStr}`;
+        const prevMonthPrefix = `${reportYear - 1}-${monthStr}`;
+
+        let currTotal = 0;
+        let prevTotal = 0;
+
+        transactions.forEach(t => {
+          if (!t.date) return;
+          if (reportCategory !== 'all' && t.categoryId !== reportCategory) return;
+          if (t.date.startsWith(currMonthPrefix)) currTotal += t.amount;
+          if (t.date.startsWith(prevMonthPrefix)) prevTotal += t.amount;
+        });
+
+        if (currTotal > maxAmount) maxAmount = currTotal;
+        if (prevTotal > maxAmount) maxAmount = prevTotal;
+
+        data.push({ month: i, currTotal, prevTotal });
+      }
+      return { data, maxAmount: maxAmount === 0 ? 1 : maxAmount }; // ゼロ除算防止
+    }, [transactions, reportYear, reportCategory]);
 
     const handleCopy = (tx) => {
       setCopyTemplate(tx);
@@ -773,51 +793,185 @@ export default function App() {
 
     return (
       <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <List className="text-teal-600" />
-            支払い履歴
-          </h2>
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm">
-            <ArrowUpDown size={14} className="text-gray-400" />
-            <select 
-              value={historySortMode}
-              onChange={(e) => setHistorySortMode(e.target.value)}
-              className="text-xs font-bold text-gray-600 bg-transparent outline-none cursor-pointer"
-            >
-              <option value="date-desc">日付 (新しい順)</option>
-              <option value="date-asc">日付 (古い順)</option>
-              <option value="amount-desc">金額 (高い順)</option>
-              <option value="amount-asc">金額 (低い順)</option>
-              <option value="category">ジャンル別</option>
-            </select>
-          </div>
+        
+        {/* サブタブの切り替え */}
+        <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
+          <button 
+            onClick={() => setHistoryTab('list')}
+            className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${historyTab === 'list' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <List size={16} /> リスト
+          </button>
+          <button 
+            onClick={() => setHistoryTab('report')}
+            className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${historyTab === 'report' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <BarChart3 size={16} /> レポート
+          </button>
         </div>
 
-        {transactions.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
-            <List className="text-gray-300 w-12 h-12 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium text-sm">まだ記録がありません</p>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {displayData.type === 'grouped' ? (
-              Object.keys(displayData.data).sort((a, b) => {
-                if (historySortMode === 'category') return displayData.formatKey(a).localeCompare(displayData.formatKey(b));
-                return historySortMode === 'date-asc' ? a.localeCompare(b) : b.localeCompare(a);
-              }).map(groupKey => (
-                <div key={groupKey} className="space-y-3">
-                  <h3 className="font-bold text-gray-500 text-sm border-b border-gray-200 pb-2 mb-4 sticky top-0 bg-gray-50/90 backdrop-blur z-10">
-                    {displayData.formatKey(groupKey)}
-                  </h3>
-                  {displayData.data[groupKey].map(t => renderTransactionItem(t))}
-                </div>
-              ))
+        {/* ---------------- リスト表示モード ---------------- */}
+        {historyTab === 'list' && (
+          <div className="animate-in fade-in">
+            {/* 月切り替え (リスト用) */}
+            <div className="flex items-center justify-between bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100 mb-6">
+              <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+                <ChevronLeft size={24} />
+              </button>
+              <span className="font-bold text-gray-800 text-lg tracking-wider">
+                {formatMonth(selectedMonth)}
+              </span>
+              <button onClick={handleNextMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+                <ChevronRight size={24} />
+              </button>
+            </div>
+
+            <div className="flex justify-end mb-4">
+              <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm">
+                <ArrowUpDown size={14} className="text-gray-400" />
+                <select 
+                  value={historySortMode}
+                  onChange={(e) => setHistorySortMode(e.target.value)}
+                  className="text-xs font-bold text-gray-600 bg-transparent outline-none cursor-pointer"
+                >
+                  <option value="date-desc">日付 (新しい順)</option>
+                  <option value="date-asc">日付 (古い順)</option>
+                  <option value="amount-desc">金額 (高い順)</option>
+                  <option value="amount-asc">金額 (低い順)</option>
+                  <option value="category">ジャンル別</option>
+                </select>
+              </div>
+            </div>
+
+            {displayData.data.length === 0 || Object.keys(displayData.data).length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
+                <List className="text-gray-300 w-12 h-12 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium text-sm">この月の記録はありません</p>
+              </div>
             ) : (
-              <div className="space-y-3">
-                {displayData.data.map(t => renderTransactionItem(t))}
+              <div className="space-y-6">
+                {displayData.type === 'grouped' ? (
+                  Object.keys(displayData.data).sort((a, b) => {
+                    if (historySortMode === 'category') return displayData.formatKey(a).localeCompare(displayData.formatKey(b));
+                    return historySortMode === 'date-asc' ? a.localeCompare(b) : b.localeCompare(a);
+                  }).map(groupKey => (
+                    <div key={groupKey} className="space-y-3">
+                      <h3 className="font-bold text-gray-500 text-sm border-b border-gray-200 pb-2 mb-2 sticky top-0 bg-gray-50/90 backdrop-blur z-10">
+                        {displayData.formatKey(groupKey)}
+                      </h3>
+                      {displayData.data[groupKey].map(t => renderTransactionItem(t))}
+                    </div>
+                  ))
+                ) : (
+                  <div className="space-y-3">
+                    {displayData.data.map(t => renderTransactionItem(t))}
+                  </div>
+                )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ---------------- レポート（グラフ）表示モード ---------------- */}
+        {historyTab === 'report' && (
+          <div className="space-y-6 animate-in fade-in">
+            {/* グラフの設定（年・カテゴリ） */}
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-4">
+              <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+                <button onClick={() => setReportYear(y => y - 1)} className="p-1 hover:bg-white rounded-lg transition-colors text-gray-500">
+                  <ChevronLeft size={20} />
+                </button>
+                <span className="font-bold text-gray-800 text-base">{reportYear}年 (昨年比較)</span>
+                <button onClick={() => setReportYear(y => y + 1)} className="p-1 hover:bg-white rounded-lg transition-colors text-gray-500">
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">対象ジャンル</label>
+                <select 
+                  value={reportCategory}
+                  onChange={(e) => setReportCategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="all">すべての支出 (合計)</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* 棒グラフ領域 */}
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="flex items-center justify-end gap-4 mb-4 text-[10px] font-bold text-gray-500">
+                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div>昨年 ({reportYear - 1})</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-teal-500 rounded-sm"></div>今年 ({reportYear})</div>
+              </div>
+
+              {/* 横スクロール可能なグラフコンテナ */}
+              <div className="flex items-end gap-3 h-48 overflow-x-auto pb-2 pt-4 px-1 snap-x no-scrollbar">
+                {reportData.data.map(d => {
+                  const currH = reportData.maxAmount > 1 ? (d.currTotal / reportData.maxAmount) * 100 : 0;
+                  const prevH = reportData.maxAmount > 1 ? (d.prevTotal / reportData.maxAmount) * 100 : 0;
+                  return (
+                    <div key={d.month} className="flex flex-col items-center gap-2 snap-center min-w-[36px]">
+                      <div className="flex items-end gap-1 h-32 w-full justify-center">
+                        <div className="w-3 bg-gray-200 rounded-t-sm relative group transition-all">
+                          <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] bg-gray-800 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
+                            ¥{d.prevTotal.toLocaleString()}
+                          </div>
+                          <div className="w-full bg-gray-300 rounded-t-sm transition-all duration-700" style={{height: `${prevH}%`}}></div>
+                        </div>
+                        <div className="w-3 bg-teal-50 rounded-t-sm relative group transition-all">
+                          <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] bg-teal-800 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
+                            ¥{d.currTotal.toLocaleString()}
+                          </div>
+                          <div className="w-full bg-teal-500 rounded-t-sm transition-all duration-700 delay-100" style={{height: `${currH}%`}}></div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-gray-500 font-bold">{d.month}月</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* グラフ下の詳細リスト */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                <span className="text-xs font-bold text-gray-500">月ごとの詳細比較</span>
+              </div>
+              <div className="divide-y divide-gray-50 max-h-60 overflow-y-auto">
+                {reportData.data.slice().reverse().map(d => {
+                  if (d.currTotal === 0 && d.prevTotal === 0) return null; // 両方0の月は省略
+                  const diff = d.currTotal - d.prevTotal;
+                  return (
+                    <div key={d.month} className="p-4 flex items-center justify-between">
+                      <div className="font-bold text-gray-700 w-10">{d.month}月</div>
+                      <div className="flex-1 px-4">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-400">昨年</span>
+                          <span className="font-medium text-gray-600">¥{d.prevTotal.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-teal-600 font-bold">今年</span>
+                          <span className="font-bold text-teal-700">¥{d.currTotal.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="w-20 text-right flex flex-col items-end justify-center">
+                        <span className="text-[9px] text-gray-400 mb-0.5">昨年比</span>
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${diff > 0 ? 'bg-red-50 text-red-600' : diff < 0 ? 'bg-blue-50 text-blue-600' : 'text-gray-400'}`}>
+                          {diff > 0 ? '+' : ''}{diff === 0 ? '±0' : diff.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {reportData.data.every(d => d.currTotal === 0 && d.prevTotal === 0) && (
+                  <div className="p-6 text-center text-xs text-gray-400 font-medium">データがありません</div>
+                )}
+              </div>
+            </div>
+
           </div>
         )}
       </div>
