@@ -115,6 +115,53 @@ const DEFAULT_CATEGORIES = [
   { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
+// --- 再利用可能な年月選択コンポーネント ---
+const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext }) => {
+  const year = parseInt(selectedMonth.split('-')[0], 10);
+  const month = parseInt(selectedMonth.split('-')[1], 10);
+  const currentYear = new Date().getFullYear();
+  // 今年から前後数年を選択肢にする
+  const years = Array.from({length: 10}, (_, i) => currentYear - 5 + i);
+  const months = Array.from({length: 12}, (_, i) => i + 1);
+
+  return (
+    <div className="flex items-center justify-between bg-white px-3 py-3 rounded-2xl shadow-sm border border-gray-100 mb-6">
+      <button onClick={onPrev} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+        <ChevronLeft size={20} />
+      </button>
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <select 
+            value={year} 
+            onChange={(e) => onMonthChange(`${e.target.value}-${month.toString().padStart(2, '0')}`)}
+            className="appearance-none bg-gray-50 border border-gray-200 font-bold text-gray-700 py-1.5 pl-3 pr-7 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+          >
+            {years.map(y => <option key={y} value={y}>{y}年</option>)}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+            <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+          </div>
+        </div>
+        <div className="relative">
+          <select 
+            value={month} 
+            onChange={(e) => onMonthChange(`${year}-${e.target.value.padStart(2, '0')}`)}
+            className="appearance-none bg-gray-50 border border-gray-200 font-bold text-gray-700 py-1.5 pl-3 pr-7 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+          >
+            {months.map(m => <option key={m} value={m}>{m}月</option>)}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+            <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+          </div>
+        </div>
+      </div>
+      <button onClick={onNext} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+        <ChevronRight size={20} />
+      </button>
+    </div>
+  );
+};
+
 export default function App() {
   const [isPassphraseValid, setIsPassphraseValid] = useState(() => {
     return localStorage.getItem('shareloo_passphrase') === SECRET_PASSPHRASE;
@@ -281,11 +328,6 @@ export default function App() {
     setSelectedMonth(d.toISOString().slice(0, 7));
   };
 
-  const formatMonth = (monthStr) => {
-    const [y, m] = monthStr.split('-');
-    return `${y}年${parseInt(m, 10)}月`;
-  };
-
   // ==========================================
   // 🔒 ロック画面
   // ==========================================
@@ -344,17 +386,13 @@ export default function App() {
 
     return (
       <div className="p-5 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <div className="flex items-center justify-between bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100">
-          <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
-            <ChevronLeft size={24} />
-          </button>
-          <span className="font-bold text-gray-800 text-lg tracking-wider">
-            {formatMonth(selectedMonth)}
-          </span>
-          <button onClick={handleNextMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
-            <ChevronRight size={24} />
-          </button>
-        </div>
+        
+        <MonthSelector 
+          selectedMonth={selectedMonth} 
+          onMonthChange={setSelectedMonth} 
+          onPrev={handlePrevMonth} 
+          onNext={handleNextMonth} 
+        />
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
           <h2 className="text-gray-500 text-sm font-medium mb-1">共同生活費 合計</h2>
@@ -717,7 +755,7 @@ export default function App() {
 
         data.push({ month: i, currTotal, prevTotal });
       }
-      return { data, maxAmount: maxAmount === 0 ? 1 : maxAmount }; // ゼロ除算防止
+      return { data, maxAmount: maxAmount === 0 ? 1 : maxAmount }; 
     }, [transactions, reportYear, reportCategory]);
 
     const handleCopy = (tx) => {
@@ -814,17 +852,12 @@ export default function App() {
         {historyTab === 'list' && (
           <div className="animate-in fade-in">
             {/* 月切り替え (リスト用) */}
-            <div className="flex items-center justify-between bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100 mb-6">
-              <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
-                <ChevronLeft size={24} />
-              </button>
-              <span className="font-bold text-gray-800 text-lg tracking-wider">
-                {formatMonth(selectedMonth)}
-              </span>
-              <button onClick={handleNextMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
-                <ChevronRight size={24} />
-              </button>
-            </div>
+            <MonthSelector 
+              selectedMonth={selectedMonth} 
+              onMonthChange={setSelectedMonth} 
+              onPrev={handlePrevMonth} 
+              onNext={handleNextMonth} 
+            />
 
             <div className="flex justify-end mb-4">
               <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm">
@@ -914,14 +947,15 @@ export default function App() {
                   const prevH = reportData.maxAmount > 1 ? (d.prevTotal / reportData.maxAmount) * 100 : 0;
                   return (
                     <div key={d.month} className="flex flex-col items-center gap-2 snap-center min-w-[36px]">
+                      {/* グラフのバー部分（h-full を追加して高さ計算を正常化） */}
                       <div className="flex items-end gap-1 h-32 w-full justify-center">
-                        <div className="w-3 bg-gray-200 rounded-t-sm relative group transition-all">
+                        <div className="w-3 h-full bg-gray-100 rounded-t-sm relative group flex items-end">
                           <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] bg-gray-800 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
                             ¥{d.prevTotal.toLocaleString()}
                           </div>
                           <div className="w-full bg-gray-300 rounded-t-sm transition-all duration-700" style={{height: `${prevH}%`}}></div>
                         </div>
-                        <div className="w-3 bg-teal-50 rounded-t-sm relative group transition-all">
+                        <div className="w-3 h-full bg-teal-50 rounded-t-sm relative group flex items-end">
                           <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] bg-teal-800 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
                             ¥{d.currTotal.toLocaleString()}
                           </div>
