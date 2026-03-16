@@ -21,13 +21,32 @@ import {
   ChevronLeft,
   ChevronRight,
   PieChart,
-  Lock
+  Lock,
+  Pencil,
+  ArrowUpDown,
+  Coffee, 
+  Droplets, 
+  Smartphone, 
+  Dog, 
+  PartyPopper, 
+  Car, 
+  Plane, 
+  Gift, 
+  Monitor, 
+  Book, 
+  Music, 
+  Film,
+  Scissors,
+  Shirt,
+  Pill,
+  Smile,
+  Baby
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
-import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 
 // いただいたFirebase設定
 const customFirebaseConfig = {
@@ -51,29 +70,60 @@ const txCollection = collection(db, 'artifacts', appId, 'public', 'data', 'trans
 const fixedCollection = collection(db, 'artifacts', appId, 'public', 'data', 'fixedExpenses');
 const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'appSettings', 'general');
 
-// 🔒 【重要】お二人だけの秘密の合言葉（ここで変更できます）
+// 🔒 【重要】お二人だけの秘密の合言葉
 const SECRET_PASSPHRASE = "!1214083120190322";
 
-const CATEGORIES = [
-  { id: 'food', name: '食費', icon: Utensils, color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
-  { id: 'daily', name: '日用品', icon: ShoppingCart, color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
-  { id: 'rent', name: '家賃', icon: HomeIcon, color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
-  { id: 'utility', name: '光熱費', icon: Zap, color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
-  { id: 'date', name: '交際費', icon: Heart, color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
-  { id: 'transport', name: '交通費', icon: Train, color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
-  { id: 'other', name: 'その他', icon: MoreHorizontal, color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
+// --- アイコンとカラーの設定 ---
+// カスタムジャンルで選択できるアイコン一覧
+const ICON_MAP = {
+  Utensils, ShoppingCart, HomeIcon, Zap, Heart, Train, MoreHorizontal,
+  Coffee, Droplets, Smartphone, Dog, PartyPopper, Car, Plane, Gift, 
+  Monitor, Book, Music, Film, Scissors, Shirt, Pill, Smile, Baby
+};
+
+// カスタムジャンルで選択できるテーマカラー一覧
+const COLOR_PRESETS = [
+  { color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
+  { color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
+  { color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
+  { color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
+  { color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
+  { color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
+  { color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
+  { color: 'bg-violet-100 text-violet-600', hexColor: '#7c3aed' },
+  { color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
+  { color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
+  { color: 'bg-rose-100 text-rose-600', hexColor: '#e11d48' },
+  { color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
+  { color: 'bg-lime-100 text-lime-600', hexColor: '#65a30d' },
+  { color: 'bg-teal-100 text-teal-600', hexColor: '#0d9488' },
+  { color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
+  { color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
+];
+
+// デフォルトのジャンル一覧
+const DEFAULT_CATEGORIES = [
+  { id: 'food', name: '食費', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
+  { id: 'eatout', name: '外食費', iconName: 'Coffee', color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
+  { id: 'daily', name: '日用品', iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
+  { id: 'rent', name: '家賃', iconName: 'HomeIcon', color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
+  { id: 'utility', name: '光熱費', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
+  { id: 'water', name: '水道代', iconName: 'Droplets', color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
+  { id: 'telecom', name: '通信費', iconName: 'Smartphone', color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
+  { id: 'dog', name: 'お犬', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
+  { id: 'event', name: 'イベント', iconName: 'PartyPopper', color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
+  { id: 'date', name: '交際費', iconName: 'Heart', color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
+  { id: 'transport', name: '交通費', iconName: 'Train', color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
+  { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
 export default function App() {
-  // --- セキュリティ（合言葉）ステート ---
-  // localStorageに保存された合言葉が一致しているかチェック
   const [isPassphraseValid, setIsPassphraseValid] = useState(() => {
     return localStorage.getItem('shareloo_passphrase') === SECRET_PASSPHRASE;
   });
   const [passphraseInput, setPassphraseInput] = useState('');
   const [loginError, setLoginError] = useState(false);
 
-  // --- 既存のステート ---
   const [activeTab, setActiveTab] = useState('home');
   const [transactions, setTransactions] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
@@ -83,9 +133,12 @@ export default function App() {
     fixedPayer: 'user1', 
     fixedAmount: 0,
     user1Name: 'あなた',
-    user2Name: 'パートナー'
+    user2Name: 'パートナー',
+    customCategories: [] // カスタムジャンル保存用
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [historySortMode, setHistorySortMode] = useState('date-desc');
+  const [editingTx, setEditingTx] = useState(null);
   const [copyTemplate, setCopyTemplate] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
   const [user, setUser] = useState(null);
@@ -95,9 +148,14 @@ export default function App() {
     user2: { id: 'user2', name: settings.user2Name || 'パートナー', color: 'bg-rose-400', lightColor: 'bg-rose-100 text-rose-700' }
   }), [settings.user1Name, settings.user2Name]);
 
-  // --- Firebase 認証とデータ取得（合言葉がOKな場合のみ実行） ---
+  // デフォルトとカスタムジャンルを結合
+  const categories = useMemo(() => {
+    return [...DEFAULT_CATEGORIES, ...(settings.customCategories || [])];
+  }, [settings.customCategories]);
+
+  // --- Firebase 認証とデータ取得 ---
   useEffect(() => {
-    if (!isPassphraseValid) return; // 合言葉が認証されるまではFirebaseに接続しない
+    if (!isPassphraseValid) return;
 
     const initAuth = async () => {
       try {
@@ -141,7 +199,8 @@ export default function App() {
           fixedPayer: data.fixedPayer || 'user1',
           fixedAmount: data.fixedAmount || 0,
           user1Name: data.user1Name || 'あなた',
-          user2Name: data.user2Name || 'パートナー'
+          user2Name: data.user2Name || 'パートナー',
+          customCategories: data.customCategories || []
         });
       }
     }, (error) => console.error(error));
@@ -158,7 +217,6 @@ export default function App() {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  // --- ログイン処理 ---
   const handleLogin = () => {
     if (passphraseInput === SECRET_PASSPHRASE) {
       localStorage.setItem('shareloo_passphrase', passphraseInput);
@@ -280,12 +338,12 @@ export default function App() {
     let cumulativePercent = 0;
     const gradientStops = stats.categoryTotals.length > 0 
       ? stats.categoryTotals.map(c => {
-          const cat = CATEGORIES.find(cat => cat.id === c.id);
+          const cat = categories.find(cat => cat.id === c.id) || { hexColor: '#9ca3af' };
           const percent = (c.amount / stats.total) * 100;
           const start = cumulativePercent;
           const end = cumulativePercent + percent;
           cumulativePercent += percent;
-          return `${cat?.hexColor || '#ccc'} ${start}% ${end}%`;
+          return `${cat.hexColor} ${start}% ${end}%`;
         }).join(', ')
       : '#f3f4f6 0% 100%';
 
@@ -391,9 +449,8 @@ export default function App() {
 
             <div className="space-y-3">
               {stats.categoryTotals.map(c => {
-                const cat = CATEGORIES.find(cat => cat.id === c.id);
-                if (!cat) return null;
-                const Icon = cat.icon;
+                const cat = categories.find(cat => cat.id === c.id) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
+                const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
                 const percentage = Math.round((c.amount / stats.total) * 100);
                 
                 return (
@@ -430,23 +487,26 @@ export default function App() {
     );
   };
 
-  const AddTransactionView = () => {
-    const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-    const [amount, setAmount] = useState('');
-    const [paidBy, setPaidBy] = useState('user1');
-    const [categoryId, setCategoryId] = useState('food');
-    const [memo, setMemo] = useState('');
+  const TransactionFormView = ({ mode = 'add' }) => {
+    const isEdit = mode === 'edit';
+    const txToEdit = isEdit ? editingTx : null;
+
+    const [date, setDate] = useState(txToEdit ? txToEdit.date : new Date().toISOString().slice(0, 10));
+    const [amount, setAmount] = useState(txToEdit ? txToEdit.amount.toString() : '');
+    const [paidBy, setPaidBy] = useState(txToEdit ? txToEdit.paidBy : 'user1');
+    const [categoryId, setCategoryId] = useState(txToEdit ? txToEdit.categoryId : 'food');
+    const [memo, setMemo] = useState(txToEdit ? txToEdit.memo : '');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-      if (copyTemplate) {
+      if (!isEdit && copyTemplate) {
         setAmount(copyTemplate.amount.toString());
         setPaidBy(copyTemplate.paidBy);
         setCategoryId(copyTemplate.categoryId);
         setMemo(copyTemplate.memo);
         setCopyTemplate(null);
       }
-    }, [copyTemplate]);
+    }, [copyTemplate, isEdit]);
 
     const handleSave = async () => {
       if (!amount || isNaN(amount) || Number(amount) <= 0) {
@@ -455,19 +515,33 @@ export default function App() {
       }
       setIsSaving(true);
       try {
-        await addDoc(txCollection, {
-          date,
-          amount: Number(amount),
-          paidBy,
-          categoryId,
-          memo,
-          createdAt: Date.now()
-        });
-        showToast('記録を保存しました');
-        setSelectedMonth(date.slice(0, 7));
-        setActiveTab('home');
+        if (isEdit) {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', txToEdit.id), {
+            date,
+            amount: Number(amount),
+            paidBy,
+            categoryId,
+            memo,
+            updatedAt: Date.now()
+          });
+          showToast('記録を更新しました');
+          setEditingTx(null);
+          setActiveTab('history');
+        } else {
+          await addDoc(txCollection, {
+            date,
+            amount: Number(amount),
+            paidBy,
+            categoryId,
+            memo,
+            createdAt: Date.now()
+          });
+          showToast('記録を保存しました');
+          setSelectedMonth(date.slice(0, 7));
+          setActiveTab('home');
+        }
       } catch (error) {
-        console.error("Error adding document: ", error);
+        console.error("Error saving document: ", error);
         showToast('エラーが発生しました');
       } finally {
         setIsSaving(false);
@@ -476,10 +550,20 @@ export default function App() {
 
     return (
       <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <Wallet className="text-teal-600" />
-          支出を記録する
-        </h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            {isEdit ? <Pencil className="text-teal-600" /> : <Wallet className="text-teal-600" />}
+            {isEdit ? '支出を編集する' : '支出を記録する'}
+          </h2>
+          {isEdit && (
+            <button 
+              onClick={() => { setEditingTx(null); setActiveTab('history'); }}
+              className="text-sm font-bold text-gray-500 hover:text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              キャンセル
+            </button>
+          )}
+        </div>
 
         <div className="space-y-6">
           <div>
@@ -516,23 +600,26 @@ export default function App() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">ジャンル</label>
+            <label className="block text-sm font-medium text-gray-600 mb-2 flex justify-between items-end">
+              <span>ジャンル</span>
+              <button onClick={() => setActiveTab('settings')} className="text-xs text-teal-600 hover:underline">追加・編集</button>
+            </label>
             <div className="grid grid-cols-4 gap-3">
-              {CATEGORIES.map(c => {
-                const Icon = c.icon;
+              {categories.map(c => {
+                const Icon = ICON_MAP[c.iconName] || ICON_MAP.MoreHorizontal;
                 const isSelected = categoryId === c.id;
                 return (
                   <button
                     key={c.id}
                     onClick={() => setCategoryId(c.id)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all border-2 ${
+                    className={`flex flex-col items-center justify-start py-3 px-1 rounded-2xl transition-all border-2 ${
                       isSelected ? 'border-teal-500 bg-teal-50 scale-105 shadow-sm' : 'border-transparent bg-white shadow-sm hover:bg-gray-50'
                     }`}
                   >
                     <div className={`p-2 rounded-full mb-1 ${isSelected ? 'bg-teal-500 text-white' : c.color}`}>
                       <Icon size={20} />
                     </div>
-                    <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
+                    <span className={`text-[10px] font-bold leading-tight text-center break-words w-full px-1 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
                       {c.name}
                     </span>
                   </button>
@@ -567,7 +654,7 @@ export default function App() {
             disabled={isSaving}
             className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98]"
           >
-            {isSaving ? '保存中...' : '登録する'}
+            {isSaving ? '保存中...' : (isEdit ? '更新する' : '登録する')}
           </button>
         </div>
       </div>
@@ -575,25 +662,51 @@ export default function App() {
   };
 
   const HistoryView = () => {
-    const groupedTx = useMemo(() => {
-      const groups = {};
-      const sorted = transactions.slice().sort((a, b) => {
-        if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
-        return (b.createdAt || 0) - (a.createdAt || 0);
-      });
+    const displayData = useMemo(() => {
+      const sorted = [...transactions];
       
-      sorted.forEach(t => {
-        if (!t.date) return;
-        const month = t.date.slice(0, 7);
-        if (!groups[month]) groups[month] = [];
-        groups[month].push(t);
-      });
-      return groups;
-    }, [transactions]);
+      if (historySortMode === 'date-desc' || historySortMode === 'date-asc') {
+        const isDesc = historySortMode === 'date-desc';
+        sorted.sort((a, b) => {
+          if (a.date !== b.date) return isDesc ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
+          return isDesc ? (b.createdAt || 0) - (a.createdAt || 0) : (a.createdAt || 0) - (b.createdAt || 0);
+        });
+        const groups = {};
+        sorted.forEach(t => {
+          if (!t.date) return;
+          const month = t.date.slice(0, 7);
+          if (!groups[month]) groups[month] = [];
+          groups[month].push(t);
+        });
+        return { type: 'grouped', data: groups, formatKey: formatMonth };
+        
+      } else if (historySortMode === 'amount-desc' || historySortMode === 'amount-asc') {
+        const isDesc = historySortMode === 'amount-desc';
+        sorted.sort((a, b) => isDesc ? b.amount - a.amount : a.amount - b.amount);
+        return { type: 'flat', data: sorted };
+        
+      } else if (historySortMode === 'category') {
+        // 同じカテゴリ内は新しい順
+        sorted.sort((a, b) => new Date(b.date) - new Date(a.date) || (b.createdAt || 0) - (a.createdAt || 0)); 
+        const groups = {};
+        sorted.forEach(t => {
+          const catId = t.categoryId;
+          if (!groups[catId]) groups[catId] = [];
+          groups[catId].push(t);
+        });
+        const formatCat = (catId) => categories.find(c => c.id === catId)?.name || 'その他';
+        return { type: 'grouped', data: groups, formatKey: formatCat };
+      }
+    }, [transactions, historySortMode, categories]);
 
     const handleCopy = (tx) => {
       setCopyTemplate(tx);
       setActiveTab('add');
+    };
+
+    const handleEdit = (tx) => {
+      setEditingTx(tx);
+      setActiveTab('edit');
     };
 
     const handleDeleteTx = async (id) => {
@@ -607,70 +720,103 @@ export default function App() {
       }
     };
 
+    const renderTransactionItem = (t) => {
+      const cat = categories.find(c => c.id === t.categoryId) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
+      const user = users[t.paidBy];
+      const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
+      return (
+        <div key={t.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 transition-all hover:shadow-md">
+          <div className={`p-3 rounded-full ${cat.color}`}>
+            <Icon size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-800 truncate">{t.memo || cat.name}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-gray-500 font-medium">{t.date.replace(/-/g, '/')}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${user?.lightColor || 'bg-gray-100'}`}>
+                {user?.name || '不明'}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <div className="font-bold text-gray-800">
+              ¥{t.amount.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <button 
+                onClick={() => handleCopy(t)}
+                className="text-xs flex items-center justify-center text-teal-600 bg-teal-50 p-1.5 rounded-lg hover:bg-teal-100 transition-colors"
+                title="コピーして新規作成"
+              >
+                <Copy size={14} />
+              </button>
+              <button 
+                onClick={() => handleEdit(t)}
+                className="text-xs flex items-center justify-center text-blue-500 bg-blue-50 p-1.5 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                title="編集"
+              >
+                <Pencil size={14} />
+              </button>
+              <button 
+                onClick={() => handleDeleteTx(t.id)}
+                className="text-xs flex items-center justify-center text-red-400 bg-red-50 p-1.5 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors"
+                title="削除"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
-        <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <List className="text-teal-600" />
-          支払い履歴
-        </h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <List className="text-teal-600" />
+            支払い履歴
+          </h2>
+          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm">
+            <ArrowUpDown size={14} className="text-gray-400" />
+            <select 
+              value={historySortMode}
+              onChange={(e) => setHistorySortMode(e.target.value)}
+              className="text-xs font-bold text-gray-600 bg-transparent outline-none cursor-pointer"
+            >
+              <option value="date-desc">日付 (新しい順)</option>
+              <option value="date-asc">日付 (古い順)</option>
+              <option value="amount-desc">金額 (高い順)</option>
+              <option value="amount-asc">金額 (低い順)</option>
+              <option value="category">ジャンル別</option>
+            </select>
+          </div>
+        </div>
 
-        {Object.keys(groupedTx).length === 0 ? (
+        {transactions.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
             <List className="text-gray-300 w-12 h-12 mx-auto mb-3" />
             <p className="text-gray-500 font-medium text-sm">まだ記録がありません</p>
           </div>
         ) : (
           <div className="space-y-8">
-            {Object.keys(groupedTx).sort((a, b) => b.localeCompare(a)).map(month => (
-              <div key={month} className="space-y-3">
-                <h3 className="font-bold text-gray-500 text-sm border-b border-gray-200 pb-2 mb-4 sticky top-0 bg-gray-50/90 backdrop-blur z-10">
-                  {formatMonth(month)}
-                </h3>
-                
-                {groupedTx[month].map(t => {
-                  const cat = CATEGORIES.find(c => c.id === t.categoryId);
-                  if (!cat) return null;
-                  const user = users[t.paidBy];
-                  const Icon = cat.icon;
-                  return (
-                    <div key={t.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 transition-all hover:shadow-md">
-                      <div className={`p-3 rounded-full ${cat.color}`}>
-                        <Icon size={20} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-800 truncate">{t.memo || cat.name}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500 font-medium">{t.date.replace(/-/g, '/')}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${user.lightColor}`}>
-                            {user.name}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="font-bold text-gray-800">
-                          ¥{t.amount.toLocaleString()}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <button 
-                            onClick={() => handleCopy(t)}
-                            className="text-xs flex items-center gap-1 text-teal-600 bg-teal-50 px-2 py-1 rounded-lg hover:bg-teal-100 transition-colors"
-                          >
-                            <Copy size={12} />
-                            コピー
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteTx(t.id)}
-                            className="text-xs flex items-center justify-center text-red-400 bg-red-50 p-1.5 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+            {displayData.type === 'grouped' ? (
+              Object.keys(displayData.data).sort((a, b) => {
+                if (historySortMode === 'category') return displayData.formatKey(a).localeCompare(displayData.formatKey(b));
+                return historySortMode === 'date-asc' ? a.localeCompare(b) : b.localeCompare(a);
+              }).map(groupKey => (
+                <div key={groupKey} className="space-y-3">
+                  <h3 className="font-bold text-gray-500 text-sm border-b border-gray-200 pb-2 mb-4 sticky top-0 bg-gray-50/90 backdrop-blur z-10">
+                    {displayData.formatKey(groupKey)}
+                  </h3>
+                  {displayData.data[groupKey].map(t => renderTransactionItem(t))}
+                </div>
+              ))
+            ) : (
+              <div className="space-y-3">
+                {displayData.data.map(t => renderTransactionItem(t))}
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
@@ -781,10 +927,9 @@ export default function App() {
         ) : (
           <div className="space-y-3 mb-6">
             {fixedExpenses.map(f => {
-              const cat = CATEGORIES.find(c => c.id === f.categoryId);
-              if (!cat) return null;
+              const cat = categories.find(c => c.id === f.categoryId) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
               const user = users[f.paidBy];
-              const Icon = cat.icon;
+              const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
               return (
                 <div key={f.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                   <div className={`p-3 rounded-full ${cat.color}`}>
@@ -846,7 +991,7 @@ export default function App() {
                 <div className="flex-1">
                   <label className="block text-xs text-gray-500 mb-1">ジャンル</label>
                   <select value={newCategory} onChange={e=>setNewCategory(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm font-medium">
-                    {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -872,7 +1017,14 @@ export default function App() {
     
     const [isSaving, setIsSaving] = useState(false);
 
-    const handleSave = async () => {
+    // カスタムジャンル用ステート
+    const [newCatName, setNewCatName] = useState('');
+    const [newCatIcon, setNewCatIcon] = useState('Gift');
+    const [newCatColor, setNewCatColor] = useState(COLOR_PRESETS[0]);
+    const [isAddingCat, setIsAddingCat] = useState(false);
+    const [isSavingCat, setIsSavingCat] = useState(false);
+
+    const handleSaveGeneral = async () => {
       if (!u1Name || !u2Name) {
         showToast('名前を入力してください');
         return;
@@ -880,6 +1032,7 @@ export default function App() {
       setIsSaving(true);
       try {
         await setDoc(settingsDocRef, {
+          ...settings, // 既存のカスタムカテゴリ等を消さないため
           splitMethod: method,
           user1Ratio: Number(ratio),
           fixedPayer,
@@ -896,12 +1049,155 @@ export default function App() {
       }
     };
 
+    const handleAddCategory = async () => {
+      if (!newCatName.trim()) {
+        showToast('ジャンル名を入力してください');
+        return;
+      }
+      setIsSavingCat(true);
+      try {
+        const newCategory = {
+          id: 'custom_' + Date.now(),
+          name: newCatName.trim(),
+          iconName: newCatIcon,
+          color: newCatColor.color,
+          hexColor: newCatColor.hexColor
+        };
+        const updatedCustomCategories = [...(settings.customCategories || []), newCategory];
+        
+        await setDoc(settingsDocRef, {
+          ...settings,
+          customCategories: updatedCustomCategories
+        });
+        setNewCatName('');
+        setIsAddingCat(false);
+        showToast('ジャンルを追加しました');
+      } catch (e) {
+        console.error(e);
+        showToast('エラーが発生しました');
+      } finally {
+        setIsSavingCat(false);
+      }
+    };
+
+    const handleDeleteCategory = async (catId) => {
+      if (!confirm('このジャンルを削除しますか？\n※既に登録されている記録のアイコンは「その他」として表示されるようになります。')) return;
+      try {
+        const updatedCustomCategories = (settings.customCategories || []).filter(c => c.id !== catId);
+        await setDoc(settingsDocRef, {
+          ...settings,
+          customCategories: updatedCustomCategories
+        });
+        showToast('ジャンルを削除しました');
+      } catch (e) {
+        console.error(e);
+        showToast('エラーが発生しました');
+      }
+    };
+
     return (
       <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
         <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <Settings className="text-teal-600" />
           各種設定
         </h2>
+
+        {/* --- カスタムジャンルの追加 --- */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
+          <h3 className="font-bold text-gray-700 mb-4 text-sm">オリジナルジャンル</h3>
+          
+          {/* 追加済みのジャンル一覧 */}
+          {settings.customCategories && settings.customCategories.length > 0 && (
+            <div className="mb-6 space-y-2">
+              <label className="block text-xs text-gray-500 mb-2">追加済みのジャンル</label>
+              <div className="flex flex-wrap gap-2">
+                {settings.customCategories.map(cat => {
+                  const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
+                  return (
+                    <div key={cat.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${cat.color} text-sm font-medium`}>
+                      <Icon size={14} />
+                      {cat.name}
+                      <button onClick={() => handleDeleteCategory(cat.id)} className="ml-1 opacity-50 hover:opacity-100 hover:text-red-500 transition-colors">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!isAddingCat ? (
+            <button 
+              onClick={() => setIsAddingCat(true)}
+              className="w-full border-2 border-dashed border-gray-300 text-gray-500 font-bold py-3 rounded-2xl hover:bg-gray-50 hover:border-gray-400 transition-all flex justify-center items-center gap-2"
+            >
+              <Plus size={18} />
+              新しいジャンルを作成する
+            </button>
+          ) : (
+            <div className="space-y-4 animate-in fade-in bg-gray-50 p-4 rounded-2xl border border-gray-200">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">ジャンル名</label>
+                <input 
+                  type="text" 
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="例：ペット用品"
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-gray-800"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">アイコン</label>
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(ICON_MAP).map(iconKey => {
+                    const IconComp = ICON_MAP[iconKey];
+                    return (
+                      <button
+                        key={iconKey}
+                        onClick={() => setNewCatIcon(iconKey)}
+                        className={`p-2 rounded-xl transition-all ${newCatIcon === iconKey ? 'bg-teal-500 text-white shadow-sm scale-110' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100'}`}
+                      >
+                        <IconComp size={18} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">テーマカラー</label>
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_PRESETS.map((preset, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setNewCatColor(preset)}
+                      className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${preset.color.split(' ')[0]} ${newCatColor.hexColor === preset.hexColor ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-105'}`}
+                      style={{ backgroundColor: preset.color.includes('bg-') ? undefined : preset.hexColor }}
+                    >
+                      {newCatColor.hexColor === preset.hexColor && <Check size={14} className={preset.color.split(' ')[1]} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* プレビュー表示 */}
+              <div className="mt-4 flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                <div className="text-xs text-gray-500 font-bold w-16">プレビュー</div>
+                <div className={`p-2 rounded-full ${newCatColor.color}`}>
+                   {React.createElement(ICON_MAP[newCatIcon], { size: 18 })}
+                </div>
+                <span className="font-bold text-gray-800 text-sm">{newCatName || 'ジャンル名'}</span>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setIsAddingCat(false)} className="flex-1 py-2.5 text-gray-500 font-bold border border-gray-200 bg-white rounded-xl hover:bg-gray-100 transition-colors">キャンセル</button>
+                <button onClick={handleAddCategory} disabled={isSavingCat} className="flex-1 py-2.5 bg-teal-600 text-white font-bold rounded-xl disabled:opacity-50 hover:bg-teal-700 transition-colors">作成する</button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
           <h3 className="font-bold text-gray-700 mb-4 text-sm">メンバーの名前</h3>
@@ -1011,11 +1307,11 @@ export default function App() {
           )}
 
           <button 
-            onClick={handleSave}
+            onClick={handleSaveGeneral}
             disabled={isSaving}
             className="w-full mt-10 bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            {isSaving ? '保存中...' : '設定を保存する'}
+            {isSaving ? '保存中...' : 'ルールと名前を保存する'}
           </button>
         </div>
       </div>
@@ -1035,7 +1331,8 @@ export default function App() {
 
       <main className="flex-1 overflow-y-auto">
         {activeTab === 'home' && <HomeView />}
-        {activeTab === 'add' && <AddTransactionView />}
+        {activeTab === 'add' && <TransactionFormView mode="add" />}
+        {activeTab === 'edit' && <TransactionFormView mode="edit" />}
         {activeTab === 'history' && <HistoryView />}
         {activeTab === 'fixed' && <FixedExpensesView />}
         {activeTab === 'settings' && <SettingsView />}
