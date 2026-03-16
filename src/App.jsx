@@ -25,6 +25,7 @@ import {
   Pencil,
   ArrowUpDown,
   BarChart3,
+  Calendar as CalendarIcon,
   Coffee, 
   Droplets, 
   Smartphone, 
@@ -125,13 +126,11 @@ const getMonthDateRange = (yearMonth, closingDate) => {
 
   if (!closingDate || closingDate === 'end' || closingDate === '0') {
     const startD = new Date(year, month - 1, 1);
-    const endD = new Date(year, month, 0); // その月の末日
+    const endD = new Date(year, month, 0); 
     return { startDate: formatD(startD), endDate: formatD(endD) };
   } else {
     const cd = parseInt(closingDate, 10);
-    // 前月の (締め日 + 1) 日
     const startD = new Date(year, month - 2, cd + 1);
-    // 当月の締め日
     const endD = new Date(year, month - 1, cd);
     return { startDate: formatD(startD), endDate: formatD(endD) };
   }
@@ -335,7 +334,12 @@ export default function App() {
 
       // 個別割り勘設定の適用
       if (t.isCustomSplit) {
-        const tU1Target = Math.round(t.amount * ((t.customUser1Ratio ?? 50) / 100));
+        let tU1Target = 0;
+        if (t.customSplitMode === 'amount') {
+          tU1Target = t.customUser1Amount || 0;
+        } else {
+          tU1Target = Math.round(t.amount * ((t.customUser1Ratio ?? 50) / 100));
+        }
         customU1TargetSum += tU1Target;
         customU2TargetSum += (t.amount - tU1Target);
       } else {
@@ -346,7 +350,6 @@ export default function App() {
     let u1Target = 0;
     let u2Target = 0;
 
-    // 全体ルールを「デフォルト設定の支出合計」に適用
     if (settings.splitMethod === 'ratio') {
       const baseU1Target = Math.round(defaultSplitTotal * (settings.user1Ratio / 100));
       u1Target = baseU1Target + customU1TargetSum;
@@ -591,7 +594,9 @@ export default function App() {
     
     // 個別割り勘用のステート
     const [isCustomSplit, setIsCustomSplit] = useState(txToEdit ? !!txToEdit.isCustomSplit : false);
+    const [customSplitMode, setCustomSplitMode] = useState(txToEdit && txToEdit.customSplitMode ? txToEdit.customSplitMode : 'ratio');
     const [customUser1Ratio, setCustomUser1Ratio] = useState(txToEdit && txToEdit.customUser1Ratio !== undefined ? txToEdit.customUser1Ratio : settings.user1Ratio);
+    const [customUser1Amount, setCustomUser1Amount] = useState(txToEdit && txToEdit.customUser1Amount !== undefined ? txToEdit.customUser1Amount : '');
 
     useEffect(() => {
       if (!isEdit && copyTemplate) {
@@ -617,7 +622,9 @@ export default function App() {
           categoryId,
           memo,
           isCustomSplit,
-          customUser1Ratio: isCustomSplit ? Number(customUser1Ratio) : null,
+          customSplitMode: isCustomSplit ? customSplitMode : null,
+          customUser1Ratio: (isCustomSplit && customSplitMode === 'ratio') ? Number(customUser1Ratio) : null,
+          customUser1Amount: (isCustomSplit && customSplitMode === 'amount') ? Number(customUser1Amount) : null,
         };
 
         if (isEdit) {
@@ -709,7 +716,7 @@ export default function App() {
           </div>
 
           {/* 個別割り勘設定 */}
-          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">この支出だけ割り勘割合を変更する</label>
               <button
@@ -722,25 +729,69 @@ export default function App() {
             </div>
             
             {isCustomSplit && (
-              <div className="mt-5 animate-in fade-in slide-in-from-top-2">
-                <div className="flex items-center gap-4 mb-2">
-                  <div className="flex-1 text-center">
-                    <p className="text-xs font-bold text-teal-600 mb-1">{users.user1.name}</p>
-                    <div className="text-xl font-bold text-gray-800">{customUser1Ratio}%</div>
-                  </div>
-                  <span className="font-bold text-gray-300">:</span>
-                  <div className="flex-1 text-center">
-                    <p className="text-xs font-bold text-rose-500 mb-1">{users.user2.name}</p>
-                    <div className="text-xl font-bold text-gray-800">{100 - customUser1Ratio}%</div>
-                  </div>
+              <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-gray-200 pt-4">
+                <div className="flex gap-2 mb-4 p-1 bg-gray-200/50 rounded-xl">
+                  <button 
+                    type="button"
+                    onClick={() => setCustomSplitMode('ratio')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'ratio' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    割合(%)で指定
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setCustomSplitMode('amount')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'amount' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    金額(円)で指定
+                  </button>
                 </div>
-                <input 
-                  type="range" 
-                  min="0" max="100" 
-                  value={customUser1Ratio} 
-                  onChange={(e) => setCustomUser1Ratio(Number(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500 mt-2"
-                />
+
+                {customSplitMode === 'ratio' ? (
+                  <div>
+                    <div className="flex items-center gap-4 mb-2">
+                      <div className="flex-1 text-center">
+                        <p className="text-[10px] font-bold text-teal-600 mb-1">{users.user1.name}</p>
+                        <div className="text-xl font-bold text-gray-800">{customUser1Ratio}%</div>
+                      </div>
+                      <span className="font-bold text-gray-300">:</span>
+                      <div className="flex-1 text-center">
+                        <p className="text-[10px] font-bold text-rose-500 mb-1">{users.user2.name}</p>
+                        <div className="text-xl font-bold text-gray-800">{100 - customUser1Ratio}%</div>
+                      </div>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0" max="100" 
+                      value={customUser1Ratio} 
+                      onChange={(e) => setCustomUser1Ratio(Number(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500 mt-2"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-teal-600 mb-1 text-center">{users.user1.name} (負担額)</label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
+                        <input 
+                          type="number" 
+                          value={customUser1Amount} 
+                          onChange={(e) => setCustomUser1Amount(e.target.value)}
+                          placeholder="0"
+                          className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg"
+                        />
+                      </div>
+                    </div>
+                    <span className="font-bold text-gray-300 mt-4">:</span>
+                    <div className="flex-1 text-center">
+                      <label className="block text-[10px] font-bold text-rose-500 mb-1">{users.user2.name} (残り)</label>
+                      <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end">
+                        ¥{Math.max(0, (Number(amount) || 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -811,6 +862,7 @@ export default function App() {
     const [historyTab, setHistoryTab] = useState('list');
     const [reportYear, setReportYear] = useState(new Date().getFullYear());
     const [reportCategory, setReportCategory] = useState('all');
+    const [selectedCalDate, setSelectedCalDate] = useState(null); // カレンダーの選択日付
 
     const displayData = useMemo(() => {
       const sorted = [...currentMonthTransactions];
@@ -868,6 +920,37 @@ export default function App() {
       return { data, maxAmount: maxAmount === 0 ? 1 : maxAmount }; 
     }, [transactions, reportYear, reportCategory, settings.closingDate]);
 
+    // カレンダー用データ計算
+    const { calendarDays, dailyData } = useMemo(() => {
+      const [yearStr, monthStr] = selectedMonth.split('-');
+      const y = parseInt(yearStr, 10);
+      const m = parseInt(monthStr, 10) - 1; // 0-indexed
+
+      const firstDay = new Date(y, m, 1);
+      const lastDay = new Date(y, m + 1, 0);
+      const daysInMonth = lastDay.getDate();
+      const startDayOfWeek = firstDay.getDay();
+
+      const days = [];
+      for (let i = 0; i < startDayOfWeek; i++) days.push(null);
+      for (let i = 1; i <= daysInMonth; i++) {
+        days.push(`${yearStr}-${monthStr}-${i.toString().padStart(2, '0')}`);
+      }
+
+      // 選択月の 1日〜末日 のトランザクションを抽出
+      const prefix = selectedMonth; 
+      const calTx = transactions.filter(t => t.date && t.date.startsWith(prefix));
+      
+      const dData = {};
+      calTx.forEach(t => {
+        if (!dData[t.date]) dData[t.date] = { total: 0, items: [] };
+        dData[t.date].total += t.amount;
+        dData[t.date].items.push(t);
+      });
+
+      return { calendarDays: days, dailyData: dData };
+    }, [selectedMonth, transactions]);
+
     const handleCopy = (tx) => {
       setCopyTemplate(tx);
       setActiveTab('add');
@@ -907,7 +990,7 @@ export default function App() {
               </span>
               {t.isCustomSplit && (
                 <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold border border-indigo-100">
-                  個別割合
+                  {t.customSplitMode === 'amount' ? '個別金額' : '個別割合'}
                 </span>
               )}
             </div>
@@ -950,18 +1033,25 @@ export default function App() {
         <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
           <button 
             onClick={() => setHistoryTab('list')}
-            className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${historyTab === 'list' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'list' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <List size={16} /> リスト
           </button>
           <button 
+            onClick={() => setHistoryTab('calendar')}
+            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'calendar' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <CalendarIcon size={16} /> カレンダー
+          </button>
+          <button 
             onClick={() => setHistoryTab('report')}
-            className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${historyTab === 'report' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'report' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <BarChart3 size={16} /> レポート
           </button>
         </div>
 
+        {/* ---------------- リスト表示モード ---------------- */}
         {historyTab === 'list' && (
           <div className="animate-in fade-in">
             <MonthSelector 
@@ -992,7 +1082,7 @@ export default function App() {
             {displayData.data.length === 0 || Object.keys(displayData.data).length === 0 ? (
               <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
                 <List className="text-gray-300 w-12 h-12 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium text-sm">この月の記録はありません</p>
+                <p className="text-gray-500 font-medium text-sm">この期間の記録はありません</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -1018,6 +1108,77 @@ export default function App() {
           </div>
         )}
 
+        {/* ---------------- カレンダー表示モード ---------------- */}
+        {historyTab === 'calendar' && (
+          <div className="animate-in fade-in">
+            <MonthSelector 
+              selectedMonth={selectedMonth} 
+              onMonthChange={setSelectedMonth} 
+              onPrev={handlePrevMonth} 
+              onNext={handleNextMonth} 
+            />
+
+            <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 mb-6">
+              <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                {['日', '月', '火', '水', '木', '金', '土'].map((d, i) => (
+                  <div key={d} className={`text-[10px] font-bold py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}>{d}</div>
+                ))}
+                
+                {calendarDays.map((dateStr, i) => {
+                  if (!dateStr) return <div key={`empty-${i}`} className="p-1"></div>;
+                  
+                  const d = parseInt(dateStr.split('-')[2], 10);
+                  const hasData = dailyData[dateStr];
+                  const isSelected = selectedCalDate === dateStr;
+                  const isToday = dateStr === new Date().toISOString().slice(0, 10);
+                  
+                  return (
+                    <div 
+                      key={dateStr}
+                      onClick={() => setSelectedCalDate(isSelected ? null : dateStr)}
+                      className={`flex flex-col items-center justify-start p-1 h-16 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-teal-500 bg-teal-50 shadow-sm scale-105 z-10' : 'border-transparent bg-gray-50 hover:bg-gray-100'} ${isToday && !isSelected ? 'border-gray-200 bg-white' : ''}`}
+                    >
+                      <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{d}</span>
+                      {hasData && (
+                        <span className="text-[8px] text-teal-600 font-bold mt-auto truncate w-full break-all leading-tight">
+                          {hasData.total > 99999 ? '¥99k+' : `¥${hasData.total.toLocaleString()}`}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* カレンダーで選択した日の詳細リスト */}
+            {selectedCalDate && (
+              <div className="animate-in fade-in slide-in-from-bottom-2">
+                <h3 className="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+                  <CalendarCheck size={16} className="text-teal-600" />
+                  {selectedCalDate.replace(/-/g, '/')} の詳細
+                </h3>
+                {dailyData[selectedCalDate] ? (
+                  <div className="space-y-3">
+                    {dailyData[selectedCalDate].items.map(t => renderTransactionItem(t))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-white rounded-2xl border border-gray-100 border-dashed">
+                    <p className="text-gray-400 font-medium text-xs">この日の記録はありません</p>
+                  </div>
+                )}
+              </div>
+            )}
+            {!selectedCalDate && (
+              <div className="text-center py-6">
+                <p className="text-gray-400 font-medium text-xs flex items-center justify-center gap-1">
+                  カレンダーの日付をタップすると詳細が表示されます
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---------------- レポート（グラフ）表示モード ---------------- */}
         {historyTab === 'report' && (
           <div className="space-y-6 animate-in fade-in">
             <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-4">
