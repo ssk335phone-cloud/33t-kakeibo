@@ -26,6 +26,8 @@ import {
   ArrowUpDown,
   BarChart3,
   Calendar as CalendarIcon,
+  Search,
+  X,
   Coffee, 
   Droplets, 
   Smartphone, 
@@ -218,9 +220,27 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-gray-500 text-sm font-medium mb-1">共同生活費 合計</h2>
-        <div className="text-4xl font-bold text-gray-800 mb-6 break-words">
+        <div className="text-4xl font-bold text-gray-800 mb-4 break-words">
           ¥{stats.total.toLocaleString()}
         </div>
+
+        {/* --- 💡 追加：予算プログレスバー --- */}
+        {settings.monthlyBudget > 0 && (
+          <div className="mb-6 pt-2">
+            <div className="flex justify-between text-[11px] mb-1.5">
+              <span className="text-gray-500 font-bold">予算: ¥{settings.monthlyBudget.toLocaleString()}</span>
+              <span className={`font-bold ${stats.total > settings.monthlyBudget ? 'text-red-500' : 'text-teal-600'}`}>
+                {stats.total > settings.monthlyBudget ? '予算オーバー' : `残り ¥${(settings.monthlyBudget - stats.total).toLocaleString()}`}
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-1000 ease-out ${stats.total > settings.monthlyBudget ? 'bg-red-500' : 'bg-teal-500'}`}
+                style={{ width: `${Math.min((stats.total / settings.monthlyBudget) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="relative h-4 w-full bg-gray-100 rounded-full overflow-hidden flex mb-3">
           <div 
@@ -251,11 +271,11 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
 
         <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center text-xs text-gray-500 font-medium border border-gray-100">
-          <span className="truncate">目標: ¥{stats.u1Target.toLocaleString()}</span>
+          <span className="truncate">負担目安: ¥{stats.u1Target.toLocaleString()}</span>
           <span className="bg-white px-2 py-1 rounded-md shadow-sm border border-gray-200 text-[10px] mx-2 flex-shrink-0">
             {settings.splitMethod === 'ratio' ? `ルール: ${settings.user1Ratio}:${100-settings.user1Ratio}` : '金額固定'}
           </span>
-          <span className="truncate">目標: ¥{stats.u2Target.toLocaleString()}</span>
+          <span className="truncate">負担目安: ¥{stats.u2Target.toLocaleString()}</span>
         </div>
       </div>
 
@@ -345,7 +365,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
 const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast }) => {
   const isEdit = mode === 'edit';
   const txToEdit = isEdit ? editingTx : null;
-  // カテゴリが削除されていた場合の安全対策（先頭のカテゴリを初期値にする）
   const defaultCategoryId = categories.length > 0 ? categories[0].id : 'food';
 
   const [date, setDate] = useState(txToEdit ? txToEdit.date : new Date().toISOString().slice(0, 10));
@@ -654,9 +673,23 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [reportCategory, setReportCategory] = useState('all');
   const [selectedCalDate, setSelectedCalDate] = useState(null);
+  
+  // --- 💡 追加：検索用のステート ---
+  const [searchQuery, setSearchQuery] = useState('');
 
   const displayData = useMemo(() => {
-    const sorted = [...currentMonthTransactions];
+    let sorted = [...currentMonthTransactions];
+    
+    // --- 💡 追加：検索キーワードでの絞り込み ---
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      sorted = sorted.filter(t => {
+        const cat = categories.find(c => c.id === t.categoryId)?.name || '';
+        return (t.memo && t.memo.toLowerCase().includes(q)) || 
+               cat.toLowerCase().includes(q) || 
+               t.amount.toString().includes(q);
+      });
+    }
     
     if (historySortMode === 'date-desc' || historySortMode === 'date-asc') {
       const isDesc = historySortMode === 'date-desc';
@@ -682,7 +715,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
       const formatCat = (catId) => categories.find(c => c.id === catId)?.name || 'その他';
       return { type: 'grouped', data: groups, formatKey: formatCat };
     }
-  }, [currentMonthTransactions, historySortMode, categories]);
+  }, [currentMonthTransactions, historySortMode, categories, searchQuery]);
 
   const reportData = useMemo(() => {
     const data = [];
@@ -820,7 +853,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
       <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
         <button 
-          onClick={() => setHistoryTab('list')}
+          onClick={() => { setHistoryTab('list'); setSearchQuery(''); }}
           className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'list' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
           <List size={16} /> リスト
@@ -849,6 +882,23 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             dateRangeText={dateRangeText}
           />
 
+          {/* --- 💡 追加：検索ボックス --- */}
+          <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100 mb-4 flex items-center gap-3 transition-all focus-within:ring-2 focus-within:ring-teal-500">
+            <Search size={18} className="text-gray-400" />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="メモやジャンル、金額で検索..."
+              className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
           <div className="flex justify-end mb-4">
             <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm">
               <ArrowUpDown size={14} className="text-gray-400" />
@@ -868,8 +918,17 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
 
           {displayData.data.length === 0 || Object.keys(displayData.data).length === 0 ? (
             <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
-              <List className="text-gray-300 w-12 h-12 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium text-sm">この期間の記録はありません</p>
+              {searchQuery ? (
+                <>
+                  <Search className="text-gray-300 w-12 h-12 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium text-sm">一致する記録が見つかりません</p>
+                </>
+              ) : (
+                <>
+                  <List className="text-gray-300 w-12 h-12 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium text-sm">この期間の記録はありません</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-6">
@@ -1282,6 +1341,9 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
   const [amount, setAmount] = useState(settings.fixedAmount || 0);
   const [closingDate, setClosingDate] = useState(settings.closingDate || 'end');
   
+  // --- 💡 追加：予算ステート ---
+  const [monthlyBudget, setMonthlyBudget] = useState(settings.monthlyBudget || 0);
+  
   const [u1Name, setU1Name] = useState(settings.user1Name || 'あなた');
   const [u2Name, setU2Name] = useState(settings.user2Name || 'パートナー');
   
@@ -1308,7 +1370,8 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
         fixedAmount: Number(amount),
         user1Name: u1Name,
         user2Name: u2Name,
-        closingDate
+        closingDate,
+        monthlyBudget: Number(monthlyBudget) // 💡 予算を保存
       });
       showToast('設定を保存しました');
     } catch (e) {
@@ -1371,6 +1434,29 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
         <Settings className="text-teal-600" />
         各種設定
       </h2>
+
+      {/* --- 💡 追加：予算の設定 --- */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
+        <h3 className="font-bold text-gray-700 mb-4 text-sm">目標予算</h3>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">今月の目標予算 (円)</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">¥</span>
+            <input 
+              type="number" 
+              inputMode="numeric"
+              pattern="\d*"
+              value={monthlyBudget}
+              onChange={(e) => setMonthlyBudget(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
+              placeholder="0 (未設定の場合は0)"
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+            ※設定すると、ホーム画面に残額のゲージが表示されます。
+          </p>
+        </div>
+      </div>
 
       {/* --- 締め日の設定 --- */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
@@ -1631,7 +1717,8 @@ export default function App() {
     user1Name: 'あなた',
     user2Name: 'パートナー',
     customCategories: [],
-    closingDate: 'end'
+    closingDate: 'end',
+    monthlyBudget: 0 // 💡 予算の初期値
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
@@ -1696,7 +1783,8 @@ export default function App() {
           user1Name: data.user1Name || 'あなた',
           user2Name: data.user2Name || 'パートナー',
           customCategories: data.customCategories || [],
-          closingDate: data.closingDate || 'end'
+          closingDate: data.closingDate || 'end',
+          monthlyBudget: data.monthlyBudget || 0
         });
       }
     }, (error) => console.error(error));
