@@ -217,7 +217,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-gray-500 text-sm font-medium mb-1">共同生活費 合計</h2>
-        <div className="text-4xl font-bold text-gray-800 mb-6">
+        <div className="text-4xl font-bold text-gray-800 mb-6 break-words">
           ¥{stats.total.toLocaleString()}
         </div>
 
@@ -239,28 +239,28 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
 
         <div className="flex justify-between text-sm mb-3">
-          <div className="flex items-center gap-1">
-            <div className={`w-3 h-3 rounded-full ${users.user1.color}`}></div>
-            <span className="text-gray-600">{users.user1.name}: ¥{stats.u1Total.toLocaleString()}</span>
+          <div className="flex items-center gap-1 w-1/2 pr-2">
+            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${users.user1.color}`}></div>
+            <span className="text-gray-600 truncate">{users.user1.name}: ¥{stats.u1Total.toLocaleString()}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-600">¥{stats.u2Total.toLocaleString()} :{users.user2.name}</span>
-            <div className={`w-3 h-3 rounded-full ${users.user2.color}`}></div>
+          <div className="flex items-center gap-1 w-1/2 justify-end pl-2">
+            <span className="text-gray-600 truncate text-right">¥{stats.u2Total.toLocaleString()} :{users.user2.name}</span>
+            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${users.user2.color}`}></div>
           </div>
         </div>
 
         <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center text-xs text-gray-500 font-medium border border-gray-100">
-          <span>目標: ¥{stats.u1Target.toLocaleString()}</span>
-          <span className="bg-white px-2 py-1 rounded-md shadow-sm border border-gray-200 text-[10px]">
+          <span className="truncate">目標: ¥{stats.u1Target.toLocaleString()}</span>
+          <span className="bg-white px-2 py-1 rounded-md shadow-sm border border-gray-200 text-[10px] mx-2 flex-shrink-0">
             {settings.splitMethod === 'ratio' ? `ルール: ${settings.user1Ratio}:${100-settings.user1Ratio}` : '金額固定'}
           </span>
-          <span>目標: ¥{stats.u2Target.toLocaleString()}</span>
+          <span className="truncate">目標: ¥{stats.u2Target.toLocaleString()}</span>
         </div>
       </div>
 
       <div className="bg-teal-50 p-5 rounded-3xl border border-teal-100 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-white rounded-full text-teal-600 shadow-sm">
+          <div className="p-3 bg-white rounded-full text-teal-600 shadow-sm flex-shrink-0">
             <ArrowRightLeft size={24} />
           </div>
           <div>
@@ -268,11 +268,11 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
             {stats.total === 0 ? (
               <p className="font-bold text-gray-800">支出はありません</p>
             ) : stats.u1Diff > 0 ? (
-              <p className="font-bold text-gray-800 text-sm">
+              <p className="font-bold text-gray-800 text-sm break-words">
                 {users.user2.name}から <span className="text-teal-600 text-lg">¥{Math.abs(stats.u1Diff).toLocaleString()}</span> もらう
               </p>
             ) : stats.u1Diff < 0 ? (
-              <p className="font-bold text-gray-800 text-sm">
+              <p className="font-bold text-gray-800 text-sm break-words">
                 {users.user2.name}へ <span className="text-rose-500 text-lg">¥{Math.abs(stats.u1Diff).toLocaleString()}</span> 渡す
               </p>
             ) : (
@@ -344,12 +344,14 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
 const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast }) => {
   const isEdit = mode === 'edit';
   const txToEdit = isEdit ? editingTx : null;
+  // カテゴリが削除されていた場合の安全対策（先頭のカテゴリを初期値にする）
+  const defaultCategoryId = categories.length > 0 ? categories[0].id : 'food';
 
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState('user1');
-  const [categoryId, setCategoryId] = useState('food');
-  const [memo, setMemo] = useState('');
+  const [date, setDate] = useState(txToEdit ? txToEdit.date : new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState(txToEdit ? txToEdit.amount.toString() : '');
+  const [paidBy, setPaidBy] = useState(txToEdit ? txToEdit.paidBy : 'user1');
+  const [categoryId, setCategoryId] = useState(txToEdit ? txToEdit.categoryId : defaultCategoryId);
+  const [memo, setMemo] = useState(txToEdit ? txToEdit.memo : '');
   const [isSaving, setIsSaving] = useState(false);
   
   const [isCustomSplit, setIsCustomSplit] = useState(false);
@@ -357,7 +359,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const [customUser1Ratio, setCustomUser1Ratio] = useState(settings.user1Ratio);
   const [customUser1Amount, setCustomUser1Amount] = useState('');
 
-  // 編集やコピーが変更されたときにステートを初期化
   useEffect(() => {
     if (isEdit && txToEdit) {
       setDate(txToEdit.date);
@@ -379,19 +380,19 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setCustomSplitMode(copyTemplate.customSplitMode || 'ratio');
       setCustomUser1Ratio(copyTemplate.customUser1Ratio ?? settings.user1Ratio);
       setCustomUser1Amount(copyTemplate.customUser1Amount ?? '');
-      setCopyTemplate(null); // コピー適用後にクリア
+      setCopyTemplate(null);
     } else if (!isEdit && !copyTemplate) {
       setDate(new Date().toISOString().slice(0, 10));
       setAmount('');
       setPaidBy('user1');
-      setCategoryId('food');
+      setCategoryId(defaultCategoryId);
       setMemo('');
       setIsCustomSplit(false);
       setCustomSplitMode('ratio');
       setCustomUser1Ratio(settings.user1Ratio);
       setCustomUser1Amount('');
     }
-  }, [txToEdit, isEdit, copyTemplate, settings.user1Ratio, setCopyTemplate]);
+  }, [txToEdit, isEdit, copyTemplate, settings.user1Ratio, setCopyTemplate, defaultCategoryId]);
 
   const handleSave = async () => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
@@ -473,6 +474,8 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">¥</span>
             <input 
               type="number" 
+              inputMode="numeric"
+              pattern="\d*"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
@@ -488,7 +491,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               <button
                 key={u.id}
                 onClick={() => setPaidBy(u.id)}
-                className={`flex-1 py-3 rounded-2xl font-bold transition-all border-2 ${
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all border-2 truncate px-2 ${
                   paidBy === u.id 
                     ? `${u.color} border-transparent text-white shadow-md scale-[1.02]` 
                     : `bg-white border-gray-100 text-gray-500 hover:bg-gray-50`
@@ -507,7 +510,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
             <button
               type="button"
               onClick={() => setIsCustomSplit(!isCustomSplit)}
-              className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner ${isCustomSplit ? 'bg-teal-500' : 'bg-gray-300'}`}
+              className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${isCustomSplit ? 'bg-teal-500' : 'bg-gray-300'}`}
             >
               <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${isCustomSplit ? 'translate-x-7' : 'translate-x-1'}`} />
             </button>
@@ -535,13 +538,13 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               {customSplitMode === 'ratio' ? (
                 <div>
                   <div className="flex items-center gap-4 mb-2">
-                    <div className="flex-1 text-center">
-                      <p className="text-[10px] font-bold text-teal-600 mb-1">{users.user1.name}</p>
+                    <div className="flex-1 text-center truncate">
+                      <p className="text-[10px] font-bold text-teal-600 mb-1 truncate">{users.user1.name}</p>
                       <div className="text-xl font-bold text-gray-800">{customUser1Ratio}%</div>
                     </div>
-                    <span className="font-bold text-gray-300">:</span>
-                    <div className="flex-1 text-center">
-                      <p className="text-[10px] font-bold text-rose-500 mb-1">{users.user2.name}</p>
+                    <span className="font-bold text-gray-300 flex-shrink-0">:</span>
+                    <div className="flex-1 text-center truncate">
+                      <p className="text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name}</p>
                       <div className="text-xl font-bold text-gray-800">{100 - customUser1Ratio}%</div>
                     </div>
                   </div>
@@ -556,11 +559,13 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               ) : (
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <label className="block text-[10px] font-bold text-teal-600 mb-1 text-center">{users.user1.name} (負担額)</label>
+                    <label className="block text-[10px] font-bold text-teal-600 mb-1 text-center truncate">{users.user1.name} (負担額)</label>
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
                       <input 
                         type="number" 
+                        inputMode="numeric"
+                        pattern="\d*"
                         value={customUser1Amount} 
                         onChange={(e) => setCustomUser1Amount(e.target.value)}
                         placeholder="0"
@@ -568,10 +573,10 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                       />
                     </div>
                   </div>
-                  <span className="font-bold text-gray-300 mt-4">:</span>
-                  <div className="flex-1 text-center">
-                    <label className="block text-[10px] font-bold text-rose-500 mb-1">{users.user2.name} (残り)</label>
-                    <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end">
+                  <span className="font-bold text-gray-300 mt-4 flex-shrink-0">:</span>
+                  <div className="flex-1 text-center min-w-0">
+                    <label className="block text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name} (残り)</label>
+                    <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end truncate">
                       ¥{Math.max(0, (Number(amount) || 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
                     </div>
                   </div>
@@ -598,10 +603,10 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                     isSelected ? 'border-teal-500 bg-teal-50 scale-105 shadow-sm' : 'border-transparent bg-white shadow-sm hover:bg-gray-50'
                   }`}
                 >
-                  <div className={`p-2 rounded-full mb-1 ${isSelected ? 'bg-teal-500 text-white' : c.color}`}>
+                  <div className={`p-2 rounded-full mb-1 flex-shrink-0 ${isSelected ? 'bg-teal-500 text-white' : c.color}`}>
                     <Icon size={20} />
                   </div>
-                  <span className={`text-[10px] font-bold leading-tight text-center break-words w-full px-1 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
+                  <span className={`text-[11px] leading-tight font-bold text-center break-words w-full px-0.5 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
                     {c.name}
                   </span>
                 </button>
@@ -761,14 +766,14 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
     return (
       <div key={t.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 transition-all hover:shadow-md">
-        <div className={`p-3 rounded-full ${cat.color}`}>
+        <div className={`p-3 rounded-full flex-shrink-0 ${cat.color}`}>
           <Icon size={20} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-gray-800 truncate">{t.memo || cat.name}</p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-gray-500 font-medium">{t.date.replace(/-/g, '/')}</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full ${user?.lightColor || 'bg-gray-100'}`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full truncate max-w-[80px] ${user?.lightColor || 'bg-gray-100'}`}>
               {user?.name || '不明'}
             </span>
             {t.isCustomSplit && (
@@ -778,7 +783,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             )}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
           <div className="font-bold text-gray-800">
             ¥{t.amount.toLocaleString()}
           </div>
@@ -898,7 +903,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             onNext={handleNextMonth} 
           />
 
-          <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 mb-6">
+          <div className="bg-white p-2 sm:p-4 rounded-3xl shadow-sm border border-gray-100 mb-6">
             <div className="grid grid-cols-7 gap-1 text-center mb-2">
               {['日', '月', '火', '水', '木', '金', '土'].map((d, i) => (
                 <div key={d} className={`text-[10px] font-bold py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}>{d}</div>
@@ -916,11 +921,11 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                   <div 
                     key={dateStr}
                     onClick={() => setSelectedCalDate(isSelected ? null : dateStr)}
-                    className={`flex flex-col items-center justify-start p-1 h-16 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-teal-500 bg-teal-50 shadow-sm scale-105 z-10' : 'border-transparent bg-gray-50 hover:bg-gray-100'} ${isToday && !isSelected ? 'border-gray-200 bg-white' : ''}`}
+                    className={`flex flex-col items-center justify-start p-0.5 sm:p-1 h-14 sm:h-16 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-teal-500 bg-teal-50 shadow-sm scale-105 z-10' : 'border-transparent bg-gray-50 hover:bg-gray-100'} ${isToday && !isSelected ? 'border-gray-200 bg-white' : ''}`}
                   >
                     <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{d}</span>
                     {hasData && (
-                      <span className="text-[8px] text-teal-600 font-bold mt-auto truncate w-full break-all leading-tight">
+                      <span className="text-[8px] text-teal-600 font-bold mt-auto truncate w-full break-all leading-tight px-0.5">
                         {hasData.total > 99999 ? '¥99k+' : `¥${hasData.total.toLocaleString()}`}
                       </span>
                     )}
@@ -1059,7 +1064,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
   );
 };
 
-const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txCollection, fixedCollection, db, appId, showToast, setSelectedMonth, setActiveTab, selectedMonth }) => {
+const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txCollection, fixedCollection, db, appId, showToast, setSelectedMonth, setActiveTab, selectedMonth, currentMonthTransactions }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [newAmount, setNewAmount] = useState('');
   const [newMemo, setNewMemo] = useState('');
@@ -1073,7 +1078,21 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
       return;
     }
     
-    // 表示している月の締め日を取得して登録日とする
+    // 【改善】二重登録防止チェック
+    const isAlreadyRegistered = fixedExpenses.some(expense => {
+      return currentMonthTransactions.some(tx => 
+        tx.memo === expense.memo && 
+        tx.amount === expense.amount && 
+        tx.categoryId === expense.categoryId
+      );
+    });
+
+    if (isAlreadyRegistered) {
+      if (!confirm('表示中の月に、既に同じ名目・金額の固定費が登録されているようです。\n重複して登録してもよろしいですか？')) {
+        return;
+      }
+    }
+    
     const { endDate } = getMonthDateRange(selectedMonth, settings.closingDate);
 
     try {
@@ -1173,16 +1192,16 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
             const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
             return (
               <div key={f.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div className={`p-3 rounded-full ${cat.color}`}>
+                <div className={`p-3 rounded-full flex-shrink-0 ${cat.color}`}>
                   <Icon size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-800 truncate">{f.memo}</p>
-                  <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full ${user.lightColor}`}>
+                  <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full truncate max-w-[80px] ${user.lightColor}`}>
                     {user.name}が支払う
                   </span>
                 </div>
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
                   <div className="font-bold text-gray-800">
                     ¥{f.amount.toLocaleString()}
                   </div>
@@ -1215,7 +1234,15 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
               <label className="block text-xs text-gray-500 mb-1">金額</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">¥</span>
-                <input type="number" value={newAmount} onChange={e=>setNewAmount(e.target.value)} className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold" placeholder="0" />
+                <input 
+                  type="number" 
+                  inputMode="numeric"
+                  pattern="\d*"
+                  value={newAmount} 
+                  onChange={e=>setNewAmount(e.target.value)} 
+                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold" 
+                  placeholder="0" 
+                />
               </div>
             </div>
             <div>
@@ -1223,15 +1250,15 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
               <input type="text" value={newMemo} onChange={e=>setNewMemo(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="何代？" />
             </div>
             <div className="flex gap-3">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="block text-xs text-gray-500 mb-1">支払う人</label>
-                <select value={newPaidBy} onChange={e=>setNewPaidBy(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm font-medium">
+                <select value={newPaidBy} onChange={e=>setNewPaidBy(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm font-medium truncate">
                   {Object.values(users).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="block text-xs text-gray-500 mb-1">ジャンル</label>
-                <select value={newCategory} onChange={e=>setNewCategory(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm font-medium">
+                <select value={newCategory} onChange={e=>setNewCategory(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm font-medium truncate">
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
@@ -1514,6 +1541,8 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
                   <p className="text-xs font-bold text-teal-600 mb-2">{u1Name}</p>
                   <input 
                     type="number" 
+                    inputMode="numeric"
+                    pattern="\d*"
                     value={ratio}
                     onChange={(e) => setRatio(Math.min(100, Math.max(0, e.target.value)))}
                     className="w-full text-center text-3xl font-bold py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
@@ -1557,6 +1586,8 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
                 <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">¥</span>
                 <input 
                   type="number" 
+                  inputMode="numeric"
+                  pattern="\d*"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="w-full pl-12 pr-5 py-4 text-right text-2xl font-bold bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
@@ -1911,6 +1942,7 @@ export default function App() {
             setSelectedMonth={setSelectedMonth}
             setActiveTab={setActiveTab}
             selectedMonth={selectedMonth}
+            currentMonthTransactions={currentMonthTransactions}
           />
         )}
         {activeTab === 'settings' && (
@@ -1929,7 +1961,10 @@ export default function App() {
         </div>
       )}
 
-      <nav className="bg-white border-t border-gray-100 pb-safe absolute bottom-0 w-full z-20">
+      <nav 
+        className="bg-white border-t border-gray-100 absolute bottom-0 w-full z-20"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
+      >
         <div className="flex justify-around items-center h-20 px-1 pb-2">
           <button 
             onClick={() => setActiveTab('home')}
