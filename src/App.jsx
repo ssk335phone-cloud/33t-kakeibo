@@ -227,7 +227,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
           ¥{stats.total.toLocaleString()}
         </div>
 
-        {/* --- 💡 追加：予算プログレスバー --- */}
         {settings.monthlyBudget > 0 && (
           <div className="mb-6 pt-2">
             <div className="flex justify-between text-[11px] mb-1.5">
@@ -365,7 +364,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
   );
 };
 
-const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast }) => {
+const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast, transactions }) => {
   const isEdit = mode === 'edit';
   const txToEdit = isEdit ? editingTx : null;
   const defaultCategoryId = categories.length > 0 ? categories[0].id : 'food';
@@ -381,6 +380,13 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const [customSplitMode, setCustomSplitMode] = useState('ratio');
   const [customUser1Ratio, setCustomUser1Ratio] = useState(settings.user1Ratio);
   const [customUser1Amount, setCustomUser1Amount] = useState('');
+
+  // 💡 追加：過去のメモ履歴からサジェスト候補を生成
+  const memoSuggestions = useMemo(() => {
+    if (!transactions) return [];
+    const memos = transactions.map(t => t.memo).filter(m => m && m.trim() !== '');
+    return [...new Set(memos)];
+  }, [transactions]);
 
   useEffect(() => {
     if (isEdit && txToEdit) {
@@ -655,8 +661,15 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="何に使った？ (任意)"
+            list="memo-options"
             className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
+          {/* 💡 追加：メモの予測変換用データリスト */}
+          <datalist id="memo-options">
+            {memoSuggestions.map((m, idx) => (
+              <option key={idx} value={m} />
+            ))}
+          </datalist>
         </div>
 
         <button 
@@ -677,13 +690,23 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
   const [reportCategory, setReportCategory] = useState('all');
   const [selectedCalDate, setSelectedCalDate] = useState(null);
   
-  // --- 💡 追加：検索用のステート ---
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchCategory, setSearchCategory] = useState('all');
+
+  // 💡 追加：過去のメモ履歴からサジェスト候補を生成
+  const memoSuggestions = useMemo(() => {
+    if (!transactions) return [];
+    const memos = transactions.map(t => t.memo).filter(m => m && m.trim() !== '');
+    return [...new Set(memos)];
+  }, [transactions]);
 
   const displayData = useMemo(() => {
     let sorted = [...currentMonthTransactions];
     
-    // --- 💡 追加：検索キーワードでの絞り込み ---
+    if (searchCategory !== 'all') {
+      sorted = sorted.filter(t => t.categoryId === searchCategory);
+    }
+    
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       sorted = sorted.filter(t => {
@@ -718,7 +741,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
       const formatCat = (catId) => categories.find(c => c.id === catId)?.name || 'その他';
       return { type: 'grouped', data: groups, formatKey: formatCat };
     }
-  }, [currentMonthTransactions, historySortMode, categories, searchQuery]);
+  }, [currentMonthTransactions, historySortMode, categories, searchQuery, searchCategory]);
 
   const reportData = useMemo(() => {
     const data = [];
@@ -856,7 +879,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
       <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
         <button 
-          onClick={() => { setHistoryTab('list'); setSearchQuery(''); }}
+          onClick={() => { setHistoryTab('list'); setSearchQuery(''); setSearchCategory('all'); }}
           className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'list' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
           <List size={16} /> リスト
@@ -885,21 +908,45 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             dateRangeText={dateRangeText}
           />
 
-          {/* --- 💡 追加：検索ボックス --- */}
-          <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100 mb-4 flex items-center gap-3 transition-all focus-within:ring-2 focus-within:ring-teal-500">
-            <Search size={18} className="text-gray-400" />
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="メモやジャンル、金額で検索..."
-              className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
-                <X size={14} />
-              </button>
-            )}
+          <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 mb-4 space-y-3">
+            <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-xl focus-within:ring-2 focus-within:ring-teal-500 transition-all border border-gray-100">
+              <Search size={16} className="text-gray-400 flex-shrink-0" />
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="メモや金額で検索..."
+                list="search-options"
+                className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400 min-w-0"
+              />
+              {/* 💡 追加：検索の予測変換用データリスト */}
+              <datalist id="search-options">
+                {memoSuggestions.map((m, idx) => (
+                  <option key={idx} value={m} />
+                ))}
+              </datalist>
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 transition-colors flex-shrink-0">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-500 whitespace-nowrap pl-1">ジャンル</span>
+              <div className="relative flex-1">
+                <select 
+                  value={searchCategory}
+                  onChange={(e) => setSearchCategory(e.target.value)}
+                  className="w-full bg-gray-50 px-3 py-2 rounded-xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none border border-gray-100"
+                >
+                  <option value="all">すべてのジャンル</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                  <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end mb-4">
@@ -921,7 +968,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
 
           {displayData.data.length === 0 || Object.keys(displayData.data).length === 0 ? (
             <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
-              {searchQuery ? (
+              {searchQuery || searchCategory !== 'all' ? (
                 <>
                   <Search className="text-gray-300 w-12 h-12 mx-auto mb-3" />
                   <p className="text-gray-500 font-medium text-sm">一致する記録が見つかりません</p>
@@ -1978,6 +2025,7 @@ export default function App() {
             appId={appId}
             txCollection={txCollection}
             showToast={showToast}
+            transactions={transactions}
           />
         )}
         {activeTab === 'edit' && (
@@ -1996,6 +2044,7 @@ export default function App() {
             appId={appId}
             txCollection={txCollection}
             showToast={showToast}
+            transactions={transactions}
           />
         )}
         {activeTab === 'history' && (
