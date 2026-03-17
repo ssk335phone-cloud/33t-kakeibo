@@ -372,16 +372,16 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
   );
 };
 
-const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast, transactions }) => {
+const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, selectedDateForNewTx, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast, transactions }) => {
   const isEdit = mode === 'edit';
   const txToEdit = isEdit ? editingTx : null;
   const defaultCategoryId = categories.length > 0 ? categories[0].id : 'food';
 
-  const [date, setDate] = useState(txToEdit ? txToEdit.date : new Date().toISOString().slice(0, 10));
-  const [amount, setAmount] = useState(txToEdit ? txToEdit.amount.toString() : '');
-  const [paidBy, setPaidBy] = useState(txToEdit ? txToEdit.paidBy : 'user1');
-  const [categoryId, setCategoryId] = useState(txToEdit ? txToEdit.categoryId : defaultCategoryId);
-  const [memo, setMemo] = useState(txToEdit ? txToEdit.memo : '');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState('');
+  const [paidBy, setPaidBy] = useState('user1');
+  const [categoryId, setCategoryId] = useState(defaultCategoryId);
+  const [memo, setMemo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
   const [isCustomSplit, setIsCustomSplit] = useState(false);
@@ -396,6 +396,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     return [...new Set(memos)];
   }, [transactions]);
 
+  // 💡 初期値の設定をマウント時などの条件変更時に1度だけ実行
   useEffect(() => {
     if (isEdit && txToEdit) {
       setDate(txToEdit.date);
@@ -417,8 +418,19 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setCustomSplitMode(copyTemplate.customSplitMode || 'ratio');
       setCustomUser1Ratio(copyTemplate.customUser1Ratio ?? settings.user1Ratio);
       setCustomUser1Amount(copyTemplate.customUser1Amount ?? '');
-      setCopyTemplate(null);
-    } else if (!isEdit && !copyTemplate) {
+    } else if (!isEdit && selectedDateForNewTx) {
+      // 💡 カレンダーから日付指定で来た場合
+      setDate(selectedDateForNewTx);
+      setAmount('');
+      setPaidBy('user1');
+      setCategoryId(defaultCategoryId);
+      setMemo('');
+      setIsCustomSplit(false);
+      setCustomSplitMode('ratio');
+      setCustomUser1Ratio(settings.user1Ratio);
+      setCustomUser1Amount('');
+    } else {
+      // 通常の新規追加
       setDate(new Date().toISOString().slice(0, 10));
       setAmount('');
       setPaidBy('user1');
@@ -429,9 +441,8 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setCustomUser1Ratio(settings.user1Ratio);
       setCustomUser1Amount('');
     }
-  }, [txToEdit, isEdit, copyTemplate, settings.user1Ratio, setCopyTemplate, defaultCategoryId]);
+  }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx]); // 依存配列を絞り、不要なリセットを防ぐ
 
-  // 💡 保存処理（続けて入力するかどうかを受け取る）
   const handleSave = async (continueEditing = false) => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
       showToast('正しい金額を入力してください');
@@ -691,7 +702,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </datalist>
         </div>
 
-        {/* 💡 追加：連続入力ボタン */}
         {!isEdit ? (
           <div className="flex flex-col gap-3">
             <button 
@@ -724,7 +734,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   );
 };
 
-const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory }) => {
+const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory }) => {
   const [historyTab, setHistoryTab] = useState('list');
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [reportCategory, setReportCategory] = useState('all');
@@ -808,11 +818,9 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     return { data, maxAmount: maxAmount === 0 ? 1 : maxAmount }; 
   }, [transactions, reportYear, reportCategory, settings.closingDate]);
 
-  // 💡 修正：カレンダーの表示期間を締め日設定に連動させる
   const { calendarDays, dailyData } = useMemo(() => {
     if (!startDate || !endDate) return { calendarDays: [], dailyData: {} };
 
-    // YYYY-MM-DD からDateオブジェクトを作成（タイムゾーンズレ防止）
     const [sy, sm, sd] = startDate.split('-');
     const start = new Date(sy, sm - 1, sd);
     
@@ -822,12 +830,10 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     const days = [];
     const startDayOfWeek = start.getDay();
 
-    // 最初の週の空白を埋める
     for (let i = 0; i < startDayOfWeek; i++) {
       days.push(null);
     }
 
-    // startDate から endDate までの日付を追加
     const currentD = new Date(start);
     while (currentD <= end) {
       const y = currentD.getFullYear();
@@ -849,11 +855,15 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
 
   const handleCopy = (tx) => {
     setCopyTemplate(tx);
+    setEditingTx(null);
+    setSelectedDateForNewTx(null);
     setActiveTab('add');
   };
 
   const handleEdit = (tx) => {
     setEditingTx(tx);
+    setCopyTemplate(null);
+    setSelectedDateForNewTx(null);
     setActiveTab('edit');
   };
 
@@ -1069,7 +1079,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
               {calendarDays.map((dateStr, i) => {
                 if (!dateStr) return <div key={`empty-${i}`} className="p-1"></div>;
                 
-                // 💡 修正：1日の場合のみ「月/日」の形式で表示する
                 const mm = parseInt(dateStr.split('-')[1], 10);
                 const dd = parseInt(dateStr.split('-')[2], 10);
                 const dDisplay = dd === 1 ? `${mm}/${dd}` : dd;
@@ -1096,13 +1105,27 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
-          {/* カレンダーで選択した日の詳細リスト */}
+          {/* 💡 追加：カレンダーで選択した日の詳細リストと「この日に記録」ボタン */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
-              <h3 className="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
-                <CalendarCheck size={16} className="text-teal-600" />
-                {selectedCalDate.replace(/-/g, '/')} の詳細
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-gray-700 text-sm flex items-center gap-2">
+                  <CalendarCheck size={16} className="text-teal-600" />
+                  {selectedCalDate.replace(/-/g, '/')} の詳細
+                </h3>
+                <button
+                  onClick={() => {
+                    setCopyTemplate(null);
+                    setEditingTx(null);
+                    setSelectedDateForNewTx(selectedCalDate);
+                    setActiveTab('add');
+                  }}
+                  className="text-[10px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition-colors flex items-center gap-1"
+                >
+                  <Plus size={14} strokeWidth={2.5} />
+                  この日に記録
+                </button>
+              </div>
               {dailyData[selectedCalDate] ? (
                 <div className="space-y-3">
                   {dailyData[selectedCalDate].items.map(t => renderTransactionItem(t))}
@@ -1239,7 +1262,6 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
       return;
     }
     
-    // 【改善】二重登録防止チェック
     const isAlreadyRegistered = fixedExpenses.some(expense => {
       return currentMonthTransactions.some(tx => 
         tx.memo === expense.memo && 
@@ -1442,7 +1464,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
   const [amount, setAmount] = useState(settings.fixedAmount || 0);
   const [closingDate, setClosingDate] = useState(settings.closingDate || 'end');
   
-  // --- 💡 追加：予算ステート ---
   const [monthlyBudget, setMonthlyBudget] = useState(settings.monthlyBudget || 0);
   
   const [u1Name, setU1Name] = useState(settings.user1Name || 'あなた');
@@ -1472,7 +1493,7 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
         user1Name: u1Name,
         user2Name: u2Name,
         closingDate,
-        monthlyBudget: Number(monthlyBudget) // 💡 予算を保存
+        monthlyBudget: Number(monthlyBudget)
       });
       showToast('設定を保存しました');
     } catch (e) {
@@ -1536,7 +1557,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
         各種設定
       </h2>
 
-      {/* --- 💡 追加：予算の設定 --- */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
         <h3 className="font-bold text-gray-700 mb-4 text-sm">目標予算</h3>
         <div>
@@ -1559,7 +1579,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
         </div>
       </div>
 
-      {/* --- 締め日の設定 --- */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
         <h3 className="font-bold text-gray-700 mb-4 text-sm">家計簿の締め日</h3>
         <div className="space-y-4">
@@ -1582,7 +1601,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
         </div>
       </div>
 
-      {/* --- カスタムジャンルの追加 --- */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
         <h3 className="font-bold text-gray-700 mb-4 text-sm">オリジナルジャンル</h3>
         
@@ -1823,8 +1841,10 @@ export default function App() {
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
-  // 💡 履歴検索用のジャンルステートを親コンポーネントで管理
   const [searchCategory, setSearchCategory] = useState('all');
+  
+  // 💡 追加：カレンダーから記録を追加するための状態
+  const [selectedDateForNewTx, setSelectedDateForNewTx] = useState(null);
 
   const [editingTx, setEditingTx] = useState(null);
   const [copyTemplate, setCopyTemplate] = useState(null);
@@ -2072,6 +2092,7 @@ export default function App() {
             setEditingTx={setEditingTx}
             copyTemplate={copyTemplate}
             setCopyTemplate={setCopyTemplate}
+            selectedDateForNewTx={selectedDateForNewTx} // 💡 カレンダーから渡された日付
             setActiveTab={setActiveTab}
             setSelectedMonth={setSelectedMonth}
             users={users}
@@ -2091,6 +2112,7 @@ export default function App() {
             setEditingTx={setEditingTx}
             copyTemplate={copyTemplate}
             setCopyTemplate={setCopyTemplate}
+            selectedDateForNewTx={null}
             setActiveTab={setActiveTab}
             setSelectedMonth={setSelectedMonth}
             users={users}
@@ -2121,6 +2143,7 @@ export default function App() {
             settings={settings}
             setCopyTemplate={setCopyTemplate}
             setEditingTx={setEditingTx}
+            setSelectedDateForNewTx={setSelectedDateForNewTx} // 💡 履歴画面から親に日付を伝えるため
             setActiveTab={setActiveTab}
             showToast={showToast}
             db={db}
@@ -2188,7 +2211,12 @@ export default function App() {
           </button>
 
           <button 
-            onClick={() => setActiveTab('add')}
+            onClick={() => {
+              setEditingTx(null);
+              setCopyTemplate(null);
+              setSelectedDateForNewTx(null); // 💡 通常の追加ボタンからは今日の日付になるようにリセット
+              setActiveTab('add');
+            }}
             className="flex flex-col items-center justify-center -translate-y-4 px-2 group"
           >
             <div className="w-14 h-14 bg-teal-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-teal-200 group-hover:bg-teal-700 transition-all duration-300 active:scale-90">
