@@ -724,7 +724,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   );
 };
 
-const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory }) => {
+const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory }) => {
   const [historyTab, setHistoryTab] = useState('list');
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [reportCategory, setReportCategory] = useState('all');
@@ -808,34 +808,44 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     return { data, maxAmount: maxAmount === 0 ? 1 : maxAmount }; 
   }, [transactions, reportYear, reportCategory, settings.closingDate]);
 
+  // 💡 修正：カレンダーの表示期間を締め日設定に連動させる
   const { calendarDays, dailyData } = useMemo(() => {
-    const [yearStr, monthStr] = selectedMonth.split('-');
-    const y = parseInt(yearStr, 10);
-    const m = parseInt(monthStr, 10) - 1;
+    if (!startDate || !endDate) return { calendarDays: [], dailyData: {} };
 
-    const firstDay = new Date(y, m, 1);
-    const lastDay = new Date(y, m + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay();
+    // YYYY-MM-DD からDateオブジェクトを作成（タイムゾーンズレ防止）
+    const [sy, sm, sd] = startDate.split('-');
+    const start = new Date(sy, sm - 1, sd);
+    
+    const [ey, em, ed] = endDate.split('-');
+    const end = new Date(ey, em - 1, ed);
 
     const days = [];
-    for (let i = 0; i < startDayOfWeek; i++) days.push(null);
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(`${yearStr}-${monthStr}-${i.toString().padStart(2, '0')}`);
+    const startDayOfWeek = start.getDay();
+
+    // 最初の週の空白を埋める
+    for (let i = 0; i < startDayOfWeek; i++) {
+      days.push(null);
     }
 
-    const prefix = selectedMonth; 
-    const calTx = transactions.filter(t => t.date && t.date.startsWith(prefix));
+    // startDate から endDate までの日付を追加
+    const currentD = new Date(start);
+    while (currentD <= end) {
+      const y = currentD.getFullYear();
+      const m = (currentD.getMonth() + 1).toString().padStart(2, '0');
+      const d = currentD.getDate().toString().padStart(2, '0');
+      days.push(`${y}-${m}-${d}`);
+      currentD.setDate(currentD.getDate() + 1);
+    }
     
     const dData = {};
-    calTx.forEach(t => {
+    currentMonthTransactions.forEach(t => {
       if (!dData[t.date]) dData[t.date] = { total: 0, items: [] };
       dData[t.date].total += t.amount;
       dData[t.date].items.push(t);
     });
 
     return { calendarDays: days, dailyData: dData };
-  }, [selectedMonth, transactions]);
+  }, [startDate, endDate, currentMonthTransactions]);
 
   const handleCopy = (tx) => {
     setCopyTemplate(tx);
@@ -1059,7 +1069,11 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
               {calendarDays.map((dateStr, i) => {
                 if (!dateStr) return <div key={`empty-${i}`} className="p-1"></div>;
                 
-                const d = parseInt(dateStr.split('-')[2], 10);
+                // 💡 修正：1日の場合のみ「月/日」の形式で表示する
+                const mm = parseInt(dateStr.split('-')[1], 10);
+                const dd = parseInt(dateStr.split('-')[2], 10);
+                const dDisplay = dd === 1 ? `${mm}/${dd}` : dd;
+                
                 const hasData = dailyData[dateStr];
                 const isSelected = selectedCalDate === dateStr;
                 const isToday = dateStr === new Date().toISOString().slice(0, 10);
@@ -1070,7 +1084,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                     onClick={() => setSelectedCalDate(isSelected ? null : dateStr)}
                     className={`flex flex-col items-center justify-start p-0.5 sm:p-1 h-14 sm:h-16 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-teal-500 bg-teal-50 shadow-sm scale-105 z-10' : 'border-transparent bg-gray-50 hover:bg-gray-100'} ${isToday && !isSelected ? 'border-gray-200 bg-white' : ''}`}
                   >
-                    <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{d}</span>
+                    <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{dDisplay}</span>
                     {hasData && (
                       <span className="text-[8px] text-teal-600 font-bold mt-auto truncate w-full break-all leading-tight px-0.5">
                         {hasData.total > 99999 ? '¥99k+' : `¥${hasData.total.toLocaleString()}`}
@@ -2098,6 +2112,8 @@ export default function App() {
             handlePrevMonth={handlePrevMonth}
             handleNextMonth={handleNextMonth}
             dateRangeText={dateRangeText}
+            startDate={startDate}
+            endDate={endDate}
             historySortMode={historySortMode}
             setHistorySortMode={setHistorySortMode}
             categories={categories}
