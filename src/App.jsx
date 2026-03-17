@@ -51,7 +51,7 @@ import {
 // --- Firebase のインポート ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
-import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { initializeFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 
 // いただいたFirebase設定
 const customFirebaseConfig = {
@@ -67,7 +67,10 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+// ネットワーク環境による接続エラーを防ぐため、ロングポーリングを自動検出するよう設定
+const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true
+});
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : '33t-kakeibo';
 
@@ -108,14 +111,14 @@ const DEFAULT_CATEGORIES = [
   { id: 'food', name: '食費', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
   { id: 'eatout', name: '外食費', iconName: 'Coffee', color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
   { id: 'daily', name: '日用品', iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
-  { id: 'rent', name: '家賃', iconName: 'HomeIcon', color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
+  { id: 'rent', name: '住居費', iconName: 'HomeIcon', color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
   { id: 'utility', name: '電気・ガス', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
   { id: 'water', name: '水道代', iconName: 'Droplets', color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
   { id: 'telecom', name: '通信費', iconName: 'Smartphone', color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
   { id: 'dog', name: 'お犬', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
   { id: 'event', name: 'イベント', iconName: 'PartyPopper', color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
-  { id: 'date', name: '交際費', iconName: 'Heart', color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
-  { id: 'transport', name: '交通費', iconName: 'Train', color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
+  { id: 'leisure', name: 'レジャー費', iconName: 'Smile', color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
+  { id: 'transport', name: '交通・車両費', iconName: 'Train', color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
   { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
