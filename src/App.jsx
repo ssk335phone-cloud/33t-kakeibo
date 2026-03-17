@@ -198,7 +198,7 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
   );
 };
 
-const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, stats, users, categories, settings }) => {
+const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, stats, users, categories, settings, setActiveTab, setSearchCategory }) => {
   let cumulativePercent = 0;
   const gradientStops = stats.categoryTotals.length > 0 
     ? stats.categoryTotals.map(c => {
@@ -310,6 +310,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
           <h3 className="font-bold text-gray-800 mb-6 text-sm flex items-center gap-2">
             <PieChart size={18} className="text-teal-600" />
             ジャンル別支出
+            <span className="text-xs font-normal text-gray-400 ml-auto">タップで履歴検索</span>
           </h3>
           
           <div className="flex items-center justify-center mb-8">
@@ -328,19 +329,26 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
             {stats.categoryTotals.map(c => {
               const cat = categories.find(cat => cat.id === c.id) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
               const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
-              const percentage = Math.round((c.amount / stats.total) * 100);
+              const percentage = ((c.amount / stats.total) * 100).toFixed(1);
               
               return (
-                <div key={c.id} className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-2xl">
+                <div 
+                  key={c.id} 
+                  onClick={() => {
+                    setSearchCategory(c.id);
+                    setActiveTab('history');
+                  }}
+                  className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-2xl cursor-pointer hover:bg-gray-100 transition-colors"
+                >
                   <div className={`p-2 rounded-full ${cat.color}`}>
                     <Icon size={16} />
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium text-gray-700">{cat.name}</span>
-                      <div className="text-right">
+                      <div className="text-right flex items-center">
                         <span className="font-bold text-gray-800">¥{c.amount.toLocaleString()}</span>
-                        <span className="text-xs text-gray-400 font-medium ml-2 w-8 inline-block">{percentage}%</span>
+                        <span className="text-xs text-gray-400 font-medium ml-2 w-10 inline-block text-right">{percentage}%</span>
                       </div>
                     </div>
                   </div>
@@ -684,14 +692,13 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   );
 };
 
-const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setActiveTab, showToast, db, appId }) => {
+const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory }) => {
   const [historyTab, setHistoryTab] = useState('list');
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [reportCategory, setReportCategory] = useState('all');
   const [selectedCalDate, setSelectedCalDate] = useState(null);
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchCategory, setSearchCategory] = useState('all');
 
   // 💡 追加：過去のメモ履歴からサジェスト候補を生成
   const memoSuggestions = useMemo(() => {
@@ -1768,10 +1775,13 @@ export default function App() {
     user2Name: 'パートナー',
     customCategories: [],
     closingDate: 'end',
-    monthlyBudget: 0 // 💡 予算の初期値
+    monthlyBudget: 0 
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
+  // 💡 履歴検索用のジャンルステートを親コンポーネントで管理
+  const [searchCategory, setSearchCategory] = useState('all');
+
   const [editingTx, setEditingTx] = useState(null);
   const [copyTemplate, setCopyTemplate] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
@@ -2007,6 +2017,8 @@ export default function App() {
             users={users}
             categories={categories}
             settings={settings}
+            setActiveTab={setActiveTab}
+            setSearchCategory={setSearchCategory}
           />
         )}
         {activeTab === 'add' && (
@@ -2067,6 +2079,8 @@ export default function App() {
             showToast={showToast}
             db={db}
             appId={appId}
+            searchCategory={searchCategory}
+            setSearchCategory={setSearchCategory}
           />
         )}
         {activeTab === 'fixed' && (
@@ -2118,7 +2132,7 @@ export default function App() {
           </button>
           
           <button 
-            onClick={() => setActiveTab('history')}
+            onClick={() => { setActiveTab('history'); setSearchCategory('all'); }}
             className={`flex flex-col items-center gap-1 w-12 ${activeTab === 'history' ? 'text-teal-600' : 'text-gray-400 hover:text-gray-500'}`}
           >
             <div className={`p-1.5 rounded-full transition-all duration-300 ${activeTab === 'history' ? 'bg-teal-50 scale-110' : ''}`}>
