@@ -389,7 +389,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const [customUser1Ratio, setCustomUser1Ratio] = useState(settings.user1Ratio);
   const [customUser1Amount, setCustomUser1Amount] = useState('');
 
-  // 💡 追加：過去のメモ履歴からサジェスト候補を生成
+  // 💡 過去のメモ履歴からサジェスト候補を生成
   const memoSuggestions = useMemo(() => {
     if (!transactions) return [];
     const memos = transactions.map(t => t.memo).filter(m => m && m.trim() !== '');
@@ -431,7 +431,8 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     }
   }, [txToEdit, isEdit, copyTemplate, settings.user1Ratio, setCopyTemplate, defaultCategoryId]);
 
-  const handleSave = async () => {
+  // 💡 保存処理（続けて入力するかどうかを受け取る）
+  const handleSave = async (continueEditing = false) => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
       showToast('正しい金額を入力してください');
       return;
@@ -465,19 +466,30 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
         });
         showToast('記録を保存しました');
         
-        const txDate = new Date(date);
-        const d = txDate.getDate();
-        let targetMonth = txDate.toISOString().slice(0, 7);
-        
-        if (settings.closingDate !== 'end' && settings.closingDate !== '0') {
-          const cd = parseInt(settings.closingDate, 10);
-          if (d > cd) {
-            const nextM = new Date(txDate.getFullYear(), txDate.getMonth() + 1, 1);
-            targetMonth = nextM.toISOString().slice(0, 7);
+        if (continueEditing) {
+          // 💡 続けて入力する場合：金額、メモ、個別割り勘をクリア（日付・支払者・ジャンルは維持）
+          setAmount('');
+          setMemo('');
+          setIsCustomSplit(false);
+          setCustomSplitMode('ratio');
+          setCustomUser1Ratio(settings.user1Ratio);
+          setCustomUser1Amount('');
+        } else {
+          // ホームへ戻る場合
+          const txDate = new Date(date);
+          const d = txDate.getDate();
+          let targetMonth = txDate.toISOString().slice(0, 7);
+          
+          if (settings.closingDate !== 'end' && settings.closingDate !== '0') {
+            const cd = parseInt(settings.closingDate, 10);
+            if (d > cd) {
+              const nextM = new Date(txDate.getFullYear(), txDate.getMonth() + 1, 1);
+              targetMonth = nextM.toISOString().slice(0, 7);
+            }
           }
+          setSelectedMonth(targetMonth);
+          setActiveTab('home');
         }
-        setSelectedMonth(targetMonth);
-        setActiveTab('home');
       }
     } catch (error) {
       console.error("Error saving document: ", error);
@@ -672,7 +684,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
             list="memo-options"
             className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
-          {/* 💡 追加：メモの予測変換用データリスト */}
           <datalist id="memo-options">
             {memoSuggestions.map((m, idx) => (
               <option key={idx} value={m} />
@@ -680,13 +691,34 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </datalist>
         </div>
 
-        <button 
-          onClick={handleSave}
-          disabled={isSaving}
-          className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98]"
-        >
-          {isSaving ? '保存中...' : (isEdit ? '更新する' : '登録する')}
-        </button>
+        {/* 💡 追加：連続入力ボタン */}
+        {!isEdit ? (
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => handleSave(false)}
+              disabled={isSaving}
+              className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98]"
+            >
+              {isSaving ? '保存中...' : '登録してホームへ'}
+            </button>
+            <button 
+              onClick={() => handleSave(true)}
+              disabled={isSaving}
+              className="w-full bg-white border-2 border-teal-500 text-teal-600 hover:bg-teal-50 disabled:opacity-50 font-bold py-3.5 rounded-2xl shadow-sm transition-all active:scale-[0.98]"
+            >
+              続けてもう1件登録する
+            </button>
+          </div>
+        ) : (
+          <button 
+            onClick={() => handleSave(false)}
+            disabled={isSaving}
+            className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98]"
+          >
+            {isSaving ? '保存中...' : '更新する'}
+          </button>
+        )}
+
       </div>
     </div>
   );
@@ -700,7 +732,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
   
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 💡 追加：過去のメモ履歴からサジェスト候補を生成
   const memoSuggestions = useMemo(() => {
     if (!transactions) return [];
     const memos = transactions.map(t => t.memo).filter(m => m && m.trim() !== '');
@@ -926,7 +957,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                 list="search-options"
                 className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400 min-w-0"
               />
-              {/* 💡 追加：検索の予測変換用データリスト */}
               <datalist id="search-options">
                 {memoSuggestions.map((m, idx) => (
                   <option key={idx} value={m} />
