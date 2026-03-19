@@ -203,9 +203,10 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
 // 💡 折れ線グラフを描画するためのSVGコンポーネント（タップで金額表示するように改善）
 const LineChart = ({ data, labels, color }) => {
   const [selectedIndex, setSelectedIndex] = useState(data.length - 1); 
-  const max = Math.max(...data, 100); 
+  // 💡 上の吹き出しと被らないように、最大値に少し余裕を持たせる
+  const max = Math.max(...data, 100) * 1.15; 
 
-  const isAllZero = max === 100 && data.every(d => d === 0);
+  const isAllZero = max === 115 && data.every(d => d === 0);
 
   const points = data.map((val, i) => {
     const x = (i / (Math.max(data.length - 1, 1))) * 100;
@@ -214,40 +215,65 @@ const LineChart = ({ data, labels, color }) => {
   }).join(' ');
 
   return (
-    <div className="w-full mt-4 relative">
+    <div className="w-full mt-6 relative">
       {selectedIndex !== null && data[selectedIndex] !== undefined && (
-        <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none z-10 animate-in fade-in zoom-in duration-200">
-           <div className="bg-gray-800 text-white text-[10px] font-bold py-1 px-2.5 rounded-lg shadow-md relative">
+        <div className="absolute -top-10 left-0 right-0 flex justify-center pointer-events-none z-10 animate-in fade-in zoom-in duration-200">
+           <div className="bg-gray-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-md relative">
              {labels[selectedIndex]}: ¥{data[selectedIndex].toLocaleString()}
              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
            </div>
         </div>
       )}
-      <svg className="w-full overflow-visible" style={{ height: '50px' }} viewBox="0 -10 100 120" preserveAspectRatio="none">
-        <polyline points={points} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      
+      {/* 💡 グラフの高さを広げて、押しつぶされた印象を解消 */}
+      <div className="relative w-full" style={{ height: '80px' }}>
+        <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polyline 
+            points={points} 
+            fill="none" 
+            stroke={color} 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            vectorEffect="non-scaling-stroke" 
+          />
+        </svg>
+
+        {/* 💡 円が楕円に歪まないようHTML要素として配置 */}
         {data.map((val, i) => {
           const x = (i / (Math.max(data.length - 1, 1))) * 100;
           const y = isAllZero ? 100 : 100 - (val / max) * 100;
           const isSelected = selectedIndex === i;
           return (
-            <g key={i} onClick={() => setSelectedIndex(i)} className="cursor-pointer" style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
-              {/* タップしやすいように透明な大きな円を配置 */}
-              <circle cx={x} cy={y} r="12" fill="transparent" />
-              <circle 
-                cx={x} 
-                cy={y} 
-                r={isSelected ? "5" : "3"} 
-                fill={isSelected ? "#fff" : color} 
-                stroke={color} 
-                strokeWidth={isSelected ? "2" : "1.5"} 
-                className="transition-all duration-300"
-                style={{ transformOrigin: `${x}px ${y}px` }}
+            <div
+              key={i}
+              onClick={() => setSelectedIndex(i)}
+              className="absolute cursor-pointer flex items-center justify-center"
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                width: '30px',
+                height: '30px',
+                transform: 'translate(-50%, -50%)',
+                outline: 'none',
+                WebkitTapHighlightColor: 'transparent'
+              }}
+            >
+              <div 
+                className="rounded-full transition-all duration-300 shadow-sm"
+                style={{
+                  width: isSelected ? '12px' : '8px',
+                  height: isSelected ? '12px' : '8px',
+                  backgroundColor: isSelected ? '#fff' : color,
+                  border: `${isSelected ? '3px' : '2px'} solid ${color}`
+                }}
               />
-            </g>
+            </div>
           );
         })}
-      </svg>
-      <div className="flex justify-between text-[8px] sm:text-[9px] text-gray-400 mt-4 font-bold px-1">
+      </div>
+
+      <div className="flex justify-between text-[9px] sm:text-[10px] text-gray-400 mt-2 font-bold px-1">
         {labels.map((label, i) => (
           <span 
             key={i} 
