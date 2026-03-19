@@ -200,27 +200,63 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
   );
 };
 
-// 💡 折れ線グラフを描画するためのSVGコンポーネント
+// 💡 折れ線グラフを描画するためのSVGコンポーネント（タップで金額表示するように改善）
 const LineChart = ({ data, labels, color }) => {
+  const [selectedIndex, setSelectedIndex] = useState(data.length - 1); 
   const max = Math.max(...data, 100); 
+
+  const isAllZero = max === 100 && data.every(d => d === 0);
+
   const points = data.map((val, i) => {
     const x = (i / (Math.max(data.length - 1, 1))) * 100;
-    const y = 100 - (val / max) * 100;
+    const y = isAllZero ? 100 : 100 - (val / max) * 100;
     return `${x},${y}`;
   }).join(' ');
 
   return (
-    <div className="w-full mt-2">
+    <div className="w-full mt-4 relative">
+      {selectedIndex !== null && data[selectedIndex] !== undefined && (
+        <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none z-10 animate-in fade-in zoom-in duration-200">
+           <div className="bg-gray-800 text-white text-[10px] font-bold py-1 px-2.5 rounded-lg shadow-md relative">
+             {labels[selectedIndex]}: ¥{data[selectedIndex].toLocaleString()}
+             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+           </div>
+        </div>
+      )}
       <svg className="w-full overflow-visible" style={{ height: '50px' }} viewBox="0 -10 100 120" preserveAspectRatio="none">
         <polyline points={points} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         {data.map((val, i) => {
           const x = (i / (Math.max(data.length - 1, 1))) * 100;
-          const y = 100 - (val / max) * 100;
-          return <circle key={i} cx={x} cy={y} r="3" fill={color} stroke="white" strokeWidth="1.5" />;
+          const y = isAllZero ? 100 : 100 - (val / max) * 100;
+          const isSelected = selectedIndex === i;
+          return (
+            <g key={i} onClick={() => setSelectedIndex(i)} className="cursor-pointer" style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
+              {/* タップしやすいように透明な大きな円を配置 */}
+              <circle cx={x} cy={y} r="12" fill="transparent" />
+              <circle 
+                cx={x} 
+                cy={y} 
+                r={isSelected ? "5" : "3"} 
+                fill={isSelected ? "#fff" : color} 
+                stroke={color} 
+                strokeWidth={isSelected ? "2" : "1.5"} 
+                className="transition-all duration-300"
+                style={{ transformOrigin: `${x}px ${y}px` }}
+              />
+            </g>
+          );
         })}
       </svg>
-      <div className="flex justify-between text-[8px] sm:text-[9px] text-gray-400 mt-3 font-bold px-1 opacity-70">
-        {labels.map((label, i) => <span key={i}>{label}</span>)}
+      <div className="flex justify-between text-[8px] sm:text-[9px] text-gray-400 mt-4 font-bold px-1">
+        {labels.map((label, i) => (
+          <span 
+            key={i} 
+            onClick={() => setSelectedIndex(i)}
+            className={`cursor-pointer px-2 py-1 -mx-2 rounded-md transition-colors ${selectedIndex === i ? 'text-gray-800 bg-gray-100' : 'hover:bg-gray-50'}`}
+          >
+            {label}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -254,16 +290,16 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
       {u1NetDebt !== 0 && (
         <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between">
           <div>
-            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 累計の立替・借金残高</p>
+            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 未精算の立替バランス</p>
             {u1NetDebt > 0 ? (
               <p className="text-sm font-bold text-gray-800 leading-snug">
                 あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 借りています
+                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
               </p>
             ) : (
               <p className="text-sm font-bold text-gray-800 leading-snug">
-                <span className="text-orange-600">{users.user2.name}</span> は あなた に <br/>
-                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 借りています
+                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
+                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
               </p>
             )}
           </div>
@@ -356,7 +392,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         {u1NetDebt !== 0 && (
           <div className="mt-2 pt-3 border-t border-teal-200/50">
             <p className="text-[10px] text-teal-700 font-medium mb-1 flex items-center gap-1">
-              💡 借金残高と相殺した最終的な金額
+              💡 立替分と相殺した最終的な精算額
             </p>
             {finalDiff > 0 ? (
               <p className="font-bold text-gray-800 text-sm break-words">
@@ -649,7 +685,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
         <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 transition-all">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              個人的な立替・借金を含める
+              個人的な立替・精算を含める
             </label>
             <button
               type="button"
@@ -668,19 +704,19 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                   onClick={() => setDebtType('borrow')}
                   className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'borrow' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
                 >
-                  {paidBy === 'user1' ? `${users.user2.name}の肩代わり` : `${users.user1.name}の肩代わり`}
+                  {paidBy === 'user1' ? `${users.user2.name}の分を立て替えた` : `${users.user1.name}の分を立て替えた`}
                 </button>
                 <button 
                   type="button"
                   onClick={() => setDebtType('repay')}
                   className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'repay' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
                 >
-                  自分の借金返済
+                  立て替えてもらっていた分を返す
                 </button>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-orange-600 mb-1 text-center">立替・返済に充てる金額</label>
+                <label className="block text-[10px] font-bold text-orange-600 mb-1 text-center">立替・精算に充てる金額</label>
                 <div className="relative">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
                   <input 
@@ -701,7 +737,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                   />
                 </div>
                 <p className="text-[9px] text-gray-500 mt-2 text-center">
-                  ※この金額は共同の生活費から除外され、借金残高に反映されます。
+                  ※この金額は共同の生活費から除外され、未精算の立替バランスに反映されます。
                 </p>
               </div>
             </div>
@@ -1016,7 +1052,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             )}
             {t.hasDebt && (
               <span className="text-[9px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold border border-orange-100">
-                {t.debtType === 'borrow' ? '肩代わり' : '借金返済'} ¥{t.debtAmount.toLocaleString()}
+                {t.debtType === 'borrow' ? '立替' : '精算'} ¥{t.debtAmount.toLocaleString()}
               </span>
             )}
           </div>
@@ -2458,30 +2494,26 @@ export default function App() {
         </div>
       )}
 
-      {/* 💡 navにshrink-0を追加してスクロールに巻き込まれないようにする */}
+      {/* 💡 メニューをスタイリッシュにスリム化 */}
       <nav 
-        className="bg-white border-t border-gray-100 w-full z-20 shrink-0"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
+        className="bg-white/95 backdrop-blur-md border-t border-gray-100 w-full z-20 shrink-0 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className="flex justify-around items-center h-20 px-1 pb-2">
+        <div className="flex justify-around items-center h-14 px-1">
           <button 
             onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center gap-1 w-12 ${activeTab === 'home' ? 'text-teal-600' : 'text-gray-400 hover:text-gray-500'}`}
+            className={`flex flex-col items-center gap-0.5 w-12 transition-all duration-200 ${activeTab === 'home' ? 'text-teal-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
           >
-            <div className={`p-1.5 rounded-full transition-all duration-300 ${activeTab === 'home' ? 'bg-teal-50 scale-110' : ''}`}>
-              <Home size={22} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
-            </div>
-            <span className="text-[9px] font-bold">ホーム</span>
+            <Home size={20} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
+            <span className="text-[8px] font-bold">ホーム</span>
           </button>
           
           <button 
             onClick={() => { setActiveTab('history'); setSearchCategory('all'); }}
-            className={`flex flex-col items-center gap-1 w-12 ${activeTab === 'history' ? 'text-teal-600' : 'text-gray-400 hover:text-gray-500'}`}
+            className={`flex flex-col items-center gap-0.5 w-12 transition-all duration-200 ${activeTab === 'history' ? 'text-teal-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
           >
-            <div className={`p-1.5 rounded-full transition-all duration-300 ${activeTab === 'history' ? 'bg-teal-50 scale-110' : ''}`}>
-              <List size={22} strokeWidth={activeTab === 'history' ? 2.5 : 2} />
-            </div>
-            <span className="text-[9px] font-bold">履歴</span>
+            <List size={20} strokeWidth={activeTab === 'history' ? 2.5 : 2} />
+            <span className="text-[8px] font-bold">履歴</span>
           </button>
 
           <button 
@@ -2491,32 +2523,27 @@ export default function App() {
               setSelectedDateForNewTx(null);
               setActiveTab('add');
             }}
-            className="flex flex-col items-center justify-center -translate-y-4 px-2 group"
+            className="flex flex-col items-center justify-center -translate-y-4 group"
           >
-            <div className="w-14 h-14 bg-teal-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-teal-200 group-hover:bg-teal-700 transition-all duration-300 active:scale-90">
-              <PlusCircle size={30} strokeWidth={2} className="transition-transform group-hover:rotate-90 duration-300" />
+            <div className="w-12 h-12 bg-teal-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-teal-200/50 group-hover:bg-teal-700 transition-all duration-300 active:scale-90 ring-4 ring-gray-50">
+              <Plus size={24} strokeWidth={3} className="transition-transform group-hover:rotate-90 duration-300" />
             </div>
           </button>
 
-          {/* 💡 変更：固定費 → レポート */}
           <button 
             onClick={() => setActiveTab('report')}
-            className={`flex flex-col items-center gap-1 w-12 ${activeTab === 'report' ? 'text-teal-600' : 'text-gray-400 hover:text-gray-500'}`}
+            className={`flex flex-col items-center gap-0.5 w-12 transition-all duration-200 ${activeTab === 'report' ? 'text-teal-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
           >
-            <div className={`p-1.5 rounded-full transition-all duration-300 ${activeTab === 'report' ? 'bg-teal-50 scale-110' : ''}`}>
-              <BarChart3 size={22} strokeWidth={activeTab === 'report' ? 2.5 : 2} />
-            </div>
-            <span className="text-[9px] font-bold">レポート</span>
+            <BarChart3 size={20} strokeWidth={activeTab === 'report' ? 2.5 : 2} />
+            <span className="text-[8px] font-bold">レポート</span>
           </button>
 
           <button 
             onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center gap-1 w-12 ${activeTab === 'settings' ? 'text-teal-600' : 'text-gray-400 hover:text-gray-500'}`}
+            className={`flex flex-col items-center gap-0.5 w-12 transition-all duration-200 ${activeTab === 'settings' ? 'text-teal-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
           >
-            <div className={`p-1.5 rounded-full transition-all duration-300 ${activeTab === 'settings' ? 'bg-teal-50 scale-110' : ''}`}>
-              <Settings size={22} strokeWidth={activeTab === 'settings' ? 2.5 : 2} className={activeTab === 'settings' ? 'animate-spin-slow' : ''} />
-            </div>
-            <span className="text-[9px] font-bold">設定</span>
+            <Settings size={20} strokeWidth={activeTab === 'settings' ? 2.5 : 2} className={activeTab === 'settings' ? 'animate-spin-slow' : ''} />
+            <span className="text-[8px] font-bold">設定</span>
           </button>
         </div>
       </nav>
