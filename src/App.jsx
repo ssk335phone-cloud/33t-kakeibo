@@ -58,7 +58,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { initializeFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 
-// いただいたFirebase設定
+// Firebase設定
 const customFirebaseConfig = {
   apiKey: "AIzaSyAD2u3XyZbAR39-1cocJdPx_YEvo5cq1To",
   authDomain: "kakeibo-9ed41.firebaseapp.com",
@@ -209,7 +209,6 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
   );
 };
 
-// 💡 折れ線グラフを描画するためのSVGコンポーネント
 const LineChart = ({ data, labels, color }) => {
   const [selectedIndex, setSelectedIndex] = useState(() => {
     for (let i = data.length - 1; i >= 0; i--) {
@@ -219,7 +218,6 @@ const LineChart = ({ data, labels, color }) => {
   }); 
 
   const max = Math.max(...data, 100) * 1.15; 
-
   const isAllZero = max === 115 && data.every(d => d === 0);
 
   const points = data.map((val, i) => {
@@ -482,6 +480,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
       )}
 
+      {/* 💡 未精算残高のブロックを一番下へ */}
       {u1NetDebt !== 0 && (
         <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between mt-6">
           <div>
@@ -541,7 +540,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     return [...new Set(memos)];
   }, [transactions]);
 
-  // 💡 同じ日付の既存トランザクションを取得
   const existingTransactions = useMemo(() => {
     if (!transactions) return [];
     return transactions.filter(t => t.date === date).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -934,7 +932,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
-        {/* 💡 同じ日付の登録済みデータを表示（二重登録防止） */}
         {existingTransactions.length > 0 && (
           <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
             <h3 className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-1.5">
@@ -995,7 +992,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
 
 const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory, historyTab, setHistoryTab }) => {
   const [selectedCalDate, setSelectedCalDate] = useState(null);
-  
   const [searchQuery, setSearchQuery] = useState('');
 
   const memoSuggestions = useMemo(() => {
@@ -1333,7 +1329,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
-          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -2218,10 +2213,11 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         )}
       </div>
 
+      {/* 💡 保存ボタンを通常フローに配置し自然な余白に */}
       <button 
         onClick={handleSaveGeneral}
         disabled={isSaving}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50 mt-8 mb-4"
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50"
       >
         {isSaving ? '保存中...' : 'すべての設定を保存する'}
       </button>
