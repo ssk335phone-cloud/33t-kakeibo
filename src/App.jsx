@@ -480,7 +480,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
       )}
 
-      {/* 💡 未精算残高のブロックを一番下へ */}
       {u1NetDebt !== 0 && (
         <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between mt-6">
           <div>
@@ -1319,8 +1318,8 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                   >
                     <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{dDisplay}</span>
                     {hasData && (
-                      <span className="text-[8px] text-teal-600 font-bold mt-auto truncate w-full break-all leading-tight px-0.5">
-                        {hasData.total > 99999 ? '¥99k+' : `¥${hasData.total.toLocaleString()}`}
+                      <span className="text-[8px] text-teal-600 font-bold mt-auto truncate w-full break-all leading-tight px-0.5 text-center">
+                        {hasData.total > 99999 ? `¥${(hasData.total / 10000).toFixed(1).replace(/\.0$/, '')}万` : `¥${hasData.total.toLocaleString()}`}
                       </span>
                     )}
                   </div>
@@ -1329,6 +1328,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
+          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -2213,11 +2213,10 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         )}
       </div>
 
-      {/* 💡 保存ボタンを通常フローに配置し自然な余白に */}
       <button 
         onClick={handleSaveGeneral}
         disabled={isSaving}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50"
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50 mt-8 mb-4"
       >
         {isSaving ? '保存中...' : 'すべての設定を保存する'}
       </button>
