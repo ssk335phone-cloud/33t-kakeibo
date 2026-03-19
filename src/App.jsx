@@ -1319,7 +1319,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                     <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{dDisplay}</span>
                     {hasData && (
                       <span className="text-[8px] text-teal-600 font-bold mt-auto truncate w-full break-all leading-tight px-0.5 text-center">
-                        {hasData.total > 99999 ? `¥${(hasData.total / 10000).toFixed(1).replace(/\.0$/, '')}万` : `¥${hasData.total.toLocaleString()}`}
+                        ¥{hasData.total.toLocaleString()}
                       </span>
                     )}
                   </div>
