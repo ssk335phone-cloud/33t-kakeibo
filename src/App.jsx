@@ -1255,6 +1255,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
+          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -1741,6 +1742,12 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => 
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [isSavingCat, setIsSavingCat] = useState(false);
 
+  // 💡 追加：初期借金設定用のステート
+  const [initialDebtPayer, setInitialDebtPayer] = useState(
+    (settings.initialDebt || 0) > 0 ? 'user2' : (settings.initialDebt || 0) < 0 ? 'user1' : 'none'
+  );
+  const [initialDebtAmount, setInitialDebtAmount] = useState(Math.abs(settings.initialDebt || 0) || '');
+
   const handleSaveGeneral = async () => {
     if (!u1Name || !u2Name) {
       showToast('名前を入力してください');
@@ -1757,7 +1764,8 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => 
         user1Name: u1Name,
         user2Name: u2Name,
         closingDate,
-        monthlyBudget: Number(monthlyBudget)
+        monthlyBudget: Number(monthlyBudget),
+        initialDebt: initialDebtPayer === 'none' ? 0 : (initialDebtPayer === 'user2' ? Number(initialDebtAmount) : -Number(initialDebtAmount)) // 💡 保存処理に追加
       });
       showToast('設定を保存しました');
     } catch (e) {
@@ -1837,6 +1845,45 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => 
         </div>
         <ChevronRightIcon size={20} className="text-indigo-400" />
       </button>
+
+      {/* --- 💡 追加：立替・借金の初期設定 --- */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
+        <h3 className="font-bold text-gray-700 mb-4 text-sm">立替・借金の初期残高</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-2">誰が立て替えている（貸している）状態から始めるか</label>
+            <select 
+              value={initialDebtPayer} 
+              onChange={(e) => setInitialDebtPayer(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all text-gray-800"
+            >
+              <option value="none">設定しない（0円）</option>
+              <option value="user1">{u1Name} が立て替えている</option>
+              <option value="user2">{u2Name} が立て替えている</option>
+            </select>
+          </div>
+          {initialDebtPayer !== 'none' && (
+            <div className="animate-in fade-in slide-in-from-top-2">
+              <label className="block text-xs text-gray-500 mb-1">金額 (円)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">¥</span>
+                <input 
+                  type="number" 
+                  inputMode="numeric"
+                  pattern="\d*"
+                  value={initialDebtAmount}
+                  onChange={(e) => setInitialDebtAmount(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+            ※アプリを使い始める前の立替残高がある場合に入力してください。
+          </p>
+        </div>
+      </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
         <h3 className="font-bold text-gray-700 mb-4 text-sm">目標予算</h3>
@@ -2118,7 +2165,8 @@ export default function App() {
     user2Name: 'パートナー',
     customCategories: [],
     closingDate: 'end',
-    monthlyBudget: 0 
+    monthlyBudget: 0,
+    initialDebt: 0 // 💡 初期借金の設定値
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
@@ -2140,8 +2188,9 @@ export default function App() {
     return [...DEFAULT_CATEGORIES, ...(settings.customCategories || [])];
   }, [settings.customCategories]);
 
+  // 💡 借金残高の計算に、設定画面で入力した初期値を加味する
   const u1NetDebt = useMemo(() => {
-    let debt = 0;
+    let debt = settings.initialDebt || 0; 
     transactions.forEach(t => {
       if (t.hasDebt && t.debtAmount) {
         if (t.paidBy === 'user1') debt -= t.debtAmount;
@@ -2149,7 +2198,7 @@ export default function App() {
       }
     });
     return debt;
-  }, [transactions]);
+  }, [transactions, settings.initialDebt]);
 
   useEffect(() => {
     if (!isPassphraseValid) return;
@@ -2199,7 +2248,8 @@ export default function App() {
           user2Name: data.user2Name || 'パートナー',
           customCategories: data.customCategories || [],
           closingDate: data.closingDate || 'end',
-          monthlyBudget: data.monthlyBudget || 0
+          monthlyBudget: data.monthlyBudget || 0,
+          initialDebt: data.initialDebt || 0 // 💡 初期値を反映
         });
       }
     }, (error) => console.error(error));
@@ -2355,7 +2405,6 @@ export default function App() {
   }
 
   return (
-    // 💡 画面全体をh-[100dvh]に固定し、メニューを常に最下部に保つ
     <div className="max-w-md mx-auto bg-gray-50 h-[100dvh] relative shadow-2xl overflow-hidden font-sans text-gray-800 flex flex-col">
       <header className="bg-white/80 backdrop-blur-md pt-12 pb-4 px-5 sticky top-0 z-10 border-b border-gray-100 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
@@ -2450,7 +2499,6 @@ export default function App() {
             setSearchCategory={setSearchCategory}
           />
         )}
-        {/* 💡 追加: レポート画面 */}
         {activeTab === 'report' && (
           <ReportView 
             transactions={transactions}
@@ -2482,7 +2530,7 @@ export default function App() {
             settings={settings}
             settingsDocRef={settingsDocRef}
             showToast={showToast}
-            setActiveTab={setActiveTab} // 💡 追記
+            setActiveTab={setActiveTab}
           />
         )}
       </main>
@@ -2494,7 +2542,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 💡 メニューをスタイリッシュにスリム化 */}
       <nav 
         className="bg-white/95 backdrop-blur-md border-t border-gray-100 w-full z-20 shrink-0 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
