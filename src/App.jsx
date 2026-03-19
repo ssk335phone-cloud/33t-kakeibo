@@ -126,6 +126,13 @@ const DEFAULT_CATEGORIES = [
   { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
+// --- 💡 タイムゾーンズレを考慮した今日の日付取得関数 ---
+const getTodayStr = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+};
+
 // --- 締め日計算ロジック ---
 const getMonthDateRange = (yearMonth, closingDate) => {
   const [yearStr, monthStr] = yearMonth.split('-');
@@ -303,7 +310,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
   const finalDiff = stats.u1Diff - u1NetDebt;
 
   return (
-    <div className="p-5 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="p-5 pb-24 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <MonthSelector 
         selectedMonth={selectedMonth} 
         onMonthChange={setSelectedMonth} 
@@ -439,7 +446,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
             {stats.categoryTotals.map(c => {
               const cat = categories.find(cat => cat.id === c.id) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
               const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
-              // 💡 変更：.0% を削除してスッキリ表示
               const percentage = ((c.amount / stats.total) * 100).toFixed(1).replace(/\.0$/, '');
               
               return (
@@ -470,7 +476,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
       )}
 
-      {/* 💡 未精算残高のブロックを一番下へ */}
       {u1NetDebt !== 0 && (
         <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between mt-6">
           <div>
@@ -508,7 +513,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const txToEdit = isEdit ? editingTx : null;
   const defaultCategoryId = categories.length > 0 ? categories[0].id : 'food';
 
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(getTodayStr());
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(currentUserType);
   const [categoryId, setCategoryId] = useState(defaultCategoryId);
@@ -545,7 +550,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setDebtType(txToEdit.debtType || 'borrow');
       setDebtAmount(txToEdit.debtAmount ? txToEdit.debtAmount.toString() : '');
     } else if (!isEdit && copyTemplate) {
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(getTodayStr());
       setAmount(copyTemplate.amount.toString());
       setPaidBy(copyTemplate.paidBy);
       setCategoryId(copyTemplate.categoryId);
@@ -571,7 +576,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setDebtType('borrow');
       setDebtAmount('');
     } else {
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(getTodayStr());
       setAmount('');
       setPaidBy(currentUserType);
       setCategoryId(defaultCategoryId);
@@ -632,7 +637,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           setCustomUser1Amount('');
           setHasDebt(false);
           setDebtAmount('');
-          // 💡 追加: 連続入力時に画面を上までスクロールする
           const mainArea = document.getElementById('main-scroll-area');
           if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
@@ -660,7 +664,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   };
 
   return (
-    <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="p-5 h-full overflow-y-auto pb-24 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
           {isEdit ? <Pencil className="text-teal-600" /> : <Wallet className="text-teal-600" />}
@@ -1123,7 +1127,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
   };
 
   return (
-    <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
+    <div className="p-5 h-full overflow-y-auto pb-24 animate-in fade-in duration-300">
       <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
         <button 
           onClick={() => { setHistoryTab('list'); setSearchQuery(''); setSearchCategory('all'); }}
@@ -1268,7 +1272,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                 
                 const hasData = dailyData[dateStr];
                 const isSelected = selectedCalDate === dateStr;
-                const isToday = dateStr === new Date().toISOString().slice(0, 10);
+                const isToday = dateStr === getTodayStr();
                 
                 return (
                   <div 
@@ -1425,7 +1429,7 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
   }, [transactions, reportYear, settings.closingDate, categories]);
 
   return (
-    <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
+    <div className="p-5 h-full overflow-y-auto pb-24 animate-in fade-in duration-300">
       <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
         <button 
           onClick={() => setReportMode('monthly')}
@@ -1635,7 +1639,7 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
   };
 
   return (
-    <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
+    <div className="p-5 h-full overflow-y-auto pb-24 animate-in fade-in duration-300">
       <div className="flex items-center gap-2 mb-6">
         <button onClick={() => setActiveTab('settings')} className="p-2 -ml-2 hover:bg-gray-100 rounded-xl text-gray-500 transition-colors">
           <ChevronLeft size={20} />
@@ -1855,7 +1859,7 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
   };
 
   return (
-    <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
+    <div className="p-5 h-full overflow-y-auto pb-24 animate-in fade-in duration-300">
       <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
         <Settings className="text-teal-600" />
         各種設定
@@ -2174,11 +2178,11 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         )}
       </div>
 
-      {/* 💾 保存ボタン */}
+      {/* 💡 保存ボタンを通常配置に変更し、マージンを調整 */}
       <button 
         onClick={handleSaveGeneral}
         disabled={isSaving}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50 sticky bottom-4 z-10"
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50 mt-8 mb-4"
       >
         {isSaving ? '保存中...' : 'すべての設定を保存する'}
       </button>
@@ -2208,7 +2212,7 @@ export default function App() {
     monthlyBudget: 0,
     initialDebt: 0 
   });
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(getTodayStr().slice(0, 7));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
   const [searchCategory, setSearchCategory] = useState('all');
   
@@ -2458,7 +2462,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* 💡 id="main-scroll-area" を追加してスクロール制御に使用 */}
       <main className="flex-1 overflow-y-auto" id="main-scroll-area">
         {activeTab === 'home' && (
           <HomeView 
