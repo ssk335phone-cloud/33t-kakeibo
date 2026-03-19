@@ -1512,18 +1512,29 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
               const dataPoints = monthlyReport.categoriesData[cat.id];
               const sum = dataPoints.reduce((a,b)=>a+b,0);
               if (sum === 0) return null;
+              
+              // 💡 ジャンル別の前月比を計算
+              const currMonth = dataPoints[5];
+              const prevMonth = dataPoints[4];
+              const diff = currMonth - prevMonth;
+              
               const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
 
               return (
                 <div key={cat.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+                  <div className="flex justify-between items-end mb-3 border-b border-gray-50 pb-3">
                     <div className="flex items-center gap-2">
-                      <div className={`p-1.5 rounded-full ${cat.color}`}><Icon size={14} /></div>
+                      <div className={`p-1.5 rounded-full ${cat.color}`}><Icon size={16} /></div>
                       <span className="font-bold text-gray-700 text-sm">{cat.name}</span>
                     </div>
-                    <span className="text-xs font-bold text-gray-500">
-                      直近6ヶ月計: ¥{sum.toLocaleString()}
-                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-black text-gray-800">¥{currMonth.toLocaleString()}</span>
+                      <div className={`flex items-center gap-0.5 text-[10px] font-bold mt-0.5 ${diff > 0 ? 'text-red-500' : diff < 0 ? 'text-teal-600' : 'text-gray-400'}`}>
+                        {diff > 0 ? <TrendingUp size={12}/> : diff < 0 ? <TrendingDown size={12}/> : null}
+                        {diff > 0 ? `+¥${diff.toLocaleString()}` : diff < 0 ? `-¥${Math.abs(diff).toLocaleString()}` : '±¥0'}
+                        <span className="text-gray-400 ml-0.5 font-medium">前月比</span>
+                      </div>
+                    </div>
                   </div>
                   <LineChart key={`monthly-cat-${cat.id}-${selectedMonth}`} data={dataPoints} labels={monthlyReport.labels} color={cat.hexColor} />
                 </div>
@@ -1564,14 +1575,15 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
 
               return (
                 <div key={cat.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+                  <div className="flex justify-between items-end mb-3 border-b border-gray-50 pb-3">
                     <div className="flex items-center gap-2">
-                      <div className={`p-1.5 rounded-full ${cat.color}`}><Icon size={14} /></div>
+                      <div className={`p-1.5 rounded-full ${cat.color}`}><Icon size={16} /></div>
                       <span className="font-bold text-gray-700 text-sm">{cat.name}</span>
                     </div>
-                    <span className="text-xs font-bold text-gray-500">
-                      年間累計: ¥{sum.toLocaleString()}
-                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-black text-gray-800">¥{sum.toLocaleString()}</span>
+                      <span className="text-[10px] text-gray-400 font-medium mt-0.5">年間累計</span>
+                    </div>
                   </div>
                   <LineChart key={`yearly-cat-${cat.id}-${reportYear}`} data={dataPoints} labels={yearlyReport.labels.map(l => l.replace('月',''))} color={cat.hexColor} />
                 </div>
