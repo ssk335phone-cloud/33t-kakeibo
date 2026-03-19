@@ -211,7 +211,14 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
 
 // 💡 折れ線グラフを描画するためのSVGコンポーネント
 const LineChart = ({ data, labels, color }) => {
-  const [selectedIndex, setSelectedIndex] = useState(data.length - 1); 
+  // 💡 値が登録されている一番新しい月を初期選択とする
+  const [selectedIndex, setSelectedIndex] = useState(() => {
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (data[i] > 0) return i;
+    }
+    return Math.max(0, data.length - 1);
+  }); 
+
   const max = Math.max(...data, 100) * 1.15; 
 
   const isAllZero = max === 115 && data.every(d => d === 0);
@@ -1467,7 +1474,7 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
                 <span className="text-xs text-gray-400 font-medium ml-1">前月比</span>
               </div>
             </div>
-            <LineChart data={monthlyReport.data.map(d=>d.total)} labels={monthlyReport.labels} color="#0d9488" />
+            <LineChart key={`monthly-total-${selectedMonth}`} data={monthlyReport.data.map(d=>d.total)} labels={monthlyReport.labels} color="#0d9488" />
           </div>
 
           <h3 className="font-bold text-gray-700 text-sm ml-1 mt-8 mb-3">ジャンル別の推移</h3>
@@ -1489,7 +1496,7 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
                       直近6ヶ月計: ¥{sum.toLocaleString()}
                     </span>
                   </div>
-                  <LineChart data={dataPoints} labels={monthlyReport.labels} color={cat.hexColor} />
+                  <LineChart key={`monthly-cat-${cat.id}-${selectedMonth}`} data={dataPoints} labels={monthlyReport.labels} color={cat.hexColor} />
                 </div>
               );
             })}
@@ -1515,7 +1522,7 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
               </span>
               <span className="text-xs text-gray-400 font-medium pb-1.5">年間合計</span>
             </div>
-            <LineChart data={yearlyReport.data.map(d=>d.currTotal)} labels={yearlyReport.labels.map(l => l.replace('月',''))} color="#0d9488" />
+            <LineChart key={`yearly-total-${reportYear}`} data={yearlyReport.data.map(d=>d.currTotal)} labels={yearlyReport.labels.map(l => l.replace('月',''))} color="#0d9488" />
           </div>
 
           <h3 className="font-bold text-gray-700 text-sm ml-1 mt-8 mb-3">ジャンル別の年間推移</h3>
@@ -1537,7 +1544,7 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
                       年間累計: ¥{sum.toLocaleString()}
                     </span>
                   </div>
-                  <LineChart data={dataPoints} labels={yearlyReport.labels.map(l => l.replace('月',''))} color={cat.hexColor} />
+                  <LineChart key={`yearly-cat-${cat.id}-${reportYear}`} data={dataPoints} labels={yearlyReport.labels.map(l => l.replace('月',''))} color={cat.hexColor} />
                 </div>
               );
             })}
@@ -1916,7 +1923,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
       {/* 💰 ルール設定セクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">お金のルール</h3>
 
-      {/* 💡 割り勘ルールをコンパクトに */}
       <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
         <h4 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-1.5"><PieChart size={16}/> 割り勘のルール</h4>
         <div className="flex gap-2 mb-4 p-1 bg-gray-50 rounded-xl border border-gray-100">
@@ -2178,7 +2184,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         )}
       </div>
 
-      {/* 💡 保存ボタンを通常配置に変更し、マージンを調整 */}
       <button 
         onClick={handleSaveGeneral}
         disabled={isSaving}
