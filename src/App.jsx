@@ -502,14 +502,14 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
   );
 };
 
-const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, selectedDateForNewTx, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast, transactions }) => {
+const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, selectedDateForNewTx, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast, transactions, currentUserType }) => {
   const isEdit = mode === 'edit';
   const txToEdit = isEdit ? editingTx : null;
   const defaultCategoryId = categories.length > 0 ? categories[0].id : 'food';
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState('user1');
+  const [paidBy, setPaidBy] = useState(currentUserType);
   const [categoryId, setCategoryId] = useState(defaultCategoryId);
   const [memo, setMemo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -559,7 +559,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     } else if (!isEdit && selectedDateForNewTx) {
       setDate(selectedDateForNewTx);
       setAmount('');
-      setPaidBy('user1');
+      setPaidBy(currentUserType);
       setCategoryId(defaultCategoryId);
       setMemo('');
       setIsCustomSplit(false);
@@ -572,7 +572,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     } else {
       setDate(new Date().toISOString().slice(0, 10));
       setAmount('');
-      setPaidBy('user1');
+      setPaidBy(currentUserType);
       setCategoryId(defaultCategoryId);
       setMemo('');
       setIsCustomSplit(false);
@@ -583,7 +583,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setDebtType('borrow');
       setDebtAmount('');
     }
-  }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx, settings.user1Ratio, defaultCategoryId]);
+  }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx, settings.user1Ratio, defaultCategoryId, currentUserType]);
 
   const handleSave = async (continueEditing = false) => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
@@ -1748,7 +1748,7 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
   );
 };
 
-const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => {
+const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, currentUserType, setCurrentUserType }) => {
   const [method, setMethod] = useState(settings.splitMethod || 'ratio');
   const [ratio, setRatio] = useState(settings.user1Ratio ?? 50);
   const [fixedPayer, setFixedPayer] = useState(settings.fixedPayer || 'user1');
@@ -1768,7 +1768,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => 
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [isSavingCat, setIsSavingCat] = useState(false);
 
-  // 💡 追加：初期借金設定用のステート
   const [initialDebtPayer, setInitialDebtPayer] = useState(
     (settings.initialDebt || 0) > 0 ? 'user2' : (settings.initialDebt || 0) < 0 ? 'user1' : 'none'
   );
@@ -1791,7 +1790,7 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => 
         user2Name: u2Name,
         closingDate,
         monthlyBudget: Number(monthlyBudget),
-        initialDebt: initialDebtPayer === 'none' ? 0 : (initialDebtPayer === 'user2' ? Number(initialDebtAmount) : -Number(initialDebtAmount)) // 💡 保存処理に追加
+        initialDebt: initialDebtPayer === 'none' ? 0 : (initialDebtPayer === 'user2' ? Number(initialDebtAmount) : -Number(initialDebtAmount)) 
       });
       showToast('設定を保存しました');
     } catch (e) {
@@ -1855,7 +1854,31 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => 
         各種設定
       </h2>
 
-      {/* 💡 固定費へのアクセスボタン */}
+      {/* 💡 あなた（現在のスマホ）の設定 */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
+        <h3 className="font-bold text-gray-700 mb-4 text-sm">あなたの設定（このスマホを使う人）</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-2">あなたはどちらですか？</label>
+            <select 
+              value={currentUserType}
+              onChange={(e) => {
+                setCurrentUserType(e.target.value);
+                localStorage.setItem('shareloo_currentUserType', e.target.value);
+                showToast('あなたの設定を保存しました');
+              }}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
+            >
+              <option value="user1">{u1Name}</option>
+              <option value="user2">{u2Name}</option>
+            </select>
+            <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
+              ※ここで設定した人が、記録を追加する際の最初の支払者として選択されます。
+            </p>
+          </div>
+        </div>
+      </div>
+
       <button 
         onClick={() => setActiveTab('fixed')}
         className="w-full bg-indigo-50 border border-indigo-100 p-4 rounded-3xl mb-6 flex items-center justify-between hover:bg-indigo-100 transition-colors"
@@ -1872,7 +1895,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => 
         <ChevronRightIcon size={20} className="text-indigo-400" />
       </button>
 
-      {/* --- 💡 追加：立替・借金の初期設定 --- */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
         <h3 className="font-bold text-gray-700 mb-4 text-sm">立替・借金の初期残高</h3>
         <div className="space-y-4">
@@ -2192,12 +2214,17 @@ export default function App() {
     customCategories: [],
     closingDate: 'end',
     monthlyBudget: 0,
-    initialDebt: 0 // 💡 初期借金の設定値
+    initialDebt: 0 
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
   const [searchCategory, setSearchCategory] = useState('all');
   
+  // 💡 スマホの利用者が「user1」か「user2」かを記憶する
+  const [currentUserType, setCurrentUserType] = useState(() => {
+    return localStorage.getItem('shareloo_currentUserType') || 'user1';
+  });
+
   const [selectedDateForNewTx, setSelectedDateForNewTx] = useState(null);
 
   const [editingTx, setEditingTx] = useState(null);
@@ -2214,7 +2241,6 @@ export default function App() {
     return [...DEFAULT_CATEGORIES, ...(settings.customCategories || [])];
   }, [settings.customCategories]);
 
-  // 💡 借金残高の計算に、設定画面で入力した初期値を加味する
   const u1NetDebt = useMemo(() => {
     let debt = settings.initialDebt || 0; 
     transactions.forEach(t => {
@@ -2275,7 +2301,7 @@ export default function App() {
           customCategories: data.customCategories || [],
           closingDate: data.closingDate || 'end',
           monthlyBudget: data.monthlyBudget || 0,
-          initialDebt: data.initialDebt || 0 // 💡 初期値を反映
+          initialDebt: data.initialDebt || 0
         });
       }
     }, (error) => console.error(error));
@@ -2476,6 +2502,7 @@ export default function App() {
             txCollection={txCollection}
             showToast={showToast}
             transactions={transactions}
+            currentUserType={currentUserType} // 💡 追記
           />
         )}
         {activeTab === 'edit' && (
@@ -2496,6 +2523,7 @@ export default function App() {
             txCollection={txCollection}
             showToast={showToast}
             transactions={transactions}
+            currentUserType={currentUserType} // 💡 追記
           />
         )}
         {activeTab === 'history' && (
@@ -2557,6 +2585,8 @@ export default function App() {
             settingsDocRef={settingsDocRef}
             showToast={showToast}
             setActiveTab={setActiveTab}
+            currentUserType={currentUserType} // 💡 追記
+            setCurrentUserType={setCurrentUserType} // 💡 追記
           />
         )}
       </main>
