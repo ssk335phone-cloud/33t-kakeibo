@@ -198,7 +198,7 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
   );
 };
 
-const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, stats, users, categories, settings, setActiveTab, setSearchCategory }) => {
+const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt }) => {
   let cumulativePercent = 0;
   const gradientStops = stats.categoryTotals.length > 0 
     ? stats.categoryTotals.map(c => {
@@ -211,6 +211,9 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
       }).join(', ')
     : '#f3f4f6 0% 100%';
 
+  // 💡 借金と今月の精算額を相殺した最終的な受渡金額
+  const finalDiff = stats.u1Diff - u1NetDebt;
+
   return (
     <div className="p-5 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <MonthSelector 
@@ -221,8 +224,28 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         dateRangeText={dateRangeText}
       />
 
+      {/* 💡 借金・立替残高の表示 */}
+      {u1NetDebt !== 0 && (
+        <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 累計の立替・借金残高</p>
+            {u1NetDebt > 0 ? (
+              <p className="text-sm font-bold text-gray-800 leading-snug">
+                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
+                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 借りています
+              </p>
+            ) : (
+              <p className="text-sm font-bold text-gray-800 leading-snug">
+                <span className="text-orange-600">{users.user2.name}</span> は あなた に <br/>
+                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 借りています
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-        <h2 className="text-gray-500 text-sm font-medium mb-1">共同生活費 合計</h2>
+        <h2 className="text-gray-500 text-sm font-medium mb-1">今月の共同生活費</h2>
         <div className="text-4xl font-bold text-gray-800 mb-4 break-words">
           ¥{stats.total.toLocaleString()}
         </div>
@@ -281,13 +304,13 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
       </div>
 
-      <div className="bg-teal-50 p-5 rounded-3xl border border-teal-100 flex items-center justify-between">
+      <div className="bg-teal-50 p-5 rounded-3xl border border-teal-100 flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-white rounded-full text-teal-600 shadow-sm flex-shrink-0">
             <ArrowRightLeft size={24} />
           </div>
           <div>
-            <p className="text-xs text-teal-600 font-medium mb-1">現在の精算状況</p>
+            <p className="text-xs text-teal-600 font-medium mb-1">今月の精算状況</p>
             {stats.total === 0 ? (
               <p className="font-bold text-gray-800">支出はありません</p>
             ) : stats.u1Diff > 0 ? (
@@ -299,10 +322,30 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
                 {users.user2.name}へ <span className="text-rose-500 text-lg">¥{Math.abs(stats.u1Diff).toLocaleString()}</span> 渡す
               </p>
             ) : (
-              <p className="font-bold text-gray-800">目標通りピッタリです</p>
+              <p className="font-bold text-gray-800">今月はピッタリです</p>
             )}
           </div>
         </div>
+        
+        {/* 💡 借金を含めた最終精算額 */}
+        {u1NetDebt !== 0 && (
+          <div className="mt-2 pt-3 border-t border-teal-200/50">
+            <p className="text-[10px] text-teal-700 font-medium mb-1 flex items-center gap-1">
+              💡 借金残高と相殺した最終的な金額
+            </p>
+            {finalDiff > 0 ? (
+              <p className="font-bold text-gray-800 text-sm break-words">
+                最終的に <span className="text-teal-600 text-lg">¥{Math.abs(finalDiff).toLocaleString()}</span> もらう
+              </p>
+            ) : finalDiff < 0 ? (
+              <p className="font-bold text-gray-800 text-sm break-words">
+                最終的に <span className="text-rose-500 text-lg">¥{Math.abs(finalDiff).toLocaleString()}</span> 渡す
+              </p>
+            ) : (
+              <p className="font-bold text-gray-800 text-sm">相殺するとプラスマイナスゼロです</p>
+            )}
+          </div>
+        )}
       </div>
 
       {stats.categoryTotals.length > 0 && (
@@ -359,7 +402,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
       )}
 
-      {stats.total === 0 && (
+      {stats.total === 0 && u1NetDebt === 0 && (
         <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
             <Wallet className="text-gray-300" size={32} />
@@ -384,19 +427,23 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const [memo, setMemo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
+  // 個別割り勘ステート
   const [isCustomSplit, setIsCustomSplit] = useState(false);
   const [customSplitMode, setCustomSplitMode] = useState('ratio');
   const [customUser1Ratio, setCustomUser1Ratio] = useState(settings.user1Ratio);
   const [customUser1Amount, setCustomUser1Amount] = useState('');
 
-  // 💡 過去のメモ履歴からサジェスト候補を生成
+  // 💡 借金・立替ステート
+  const [hasDebt, setHasDebt] = useState(false);
+  const [debtType, setDebtType] = useState('borrow'); // borrow: 相手の肩代わり, repay: 自分の返済
+  const [debtAmount, setDebtAmount] = useState('');
+
   const memoSuggestions = useMemo(() => {
     if (!transactions) return [];
     const memos = transactions.map(t => t.memo).filter(m => m && m.trim() !== '');
     return [...new Set(memos)];
   }, [transactions]);
 
-  // 💡 初期値の設定をマウント時などの条件変更時に1度だけ実行
   useEffect(() => {
     if (isEdit && txToEdit) {
       setDate(txToEdit.date);
@@ -408,6 +455,10 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setCustomSplitMode(txToEdit.customSplitMode || 'ratio');
       setCustomUser1Ratio(txToEdit.customUser1Ratio ?? settings.user1Ratio);
       setCustomUser1Amount(txToEdit.customUser1Amount ?? '');
+      // 借金設定の読み込み
+      setHasDebt(!!txToEdit.hasDebt);
+      setDebtType(txToEdit.debtType || 'borrow');
+      setDebtAmount(txToEdit.debtAmount ? txToEdit.debtAmount.toString() : '');
     } else if (!isEdit && copyTemplate) {
       setDate(new Date().toISOString().slice(0, 10));
       setAmount(copyTemplate.amount.toString());
@@ -418,8 +469,10 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setCustomSplitMode(copyTemplate.customSplitMode || 'ratio');
       setCustomUser1Ratio(copyTemplate.customUser1Ratio ?? settings.user1Ratio);
       setCustomUser1Amount(copyTemplate.customUser1Amount ?? '');
+      setHasDebt(!!copyTemplate.hasDebt);
+      setDebtType(copyTemplate.debtType || 'borrow');
+      setDebtAmount(copyTemplate.debtAmount ? copyTemplate.debtAmount.toString() : '');
     } else if (!isEdit && selectedDateForNewTx) {
-      // 💡 カレンダーから日付指定で来た場合
       setDate(selectedDateForNewTx);
       setAmount('');
       setPaidBy('user1');
@@ -429,8 +482,10 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setCustomSplitMode('ratio');
       setCustomUser1Ratio(settings.user1Ratio);
       setCustomUser1Amount('');
+      setHasDebt(false);
+      setDebtType('borrow');
+      setDebtAmount('');
     } else {
-      // 通常の新規追加
       setDate(new Date().toISOString().slice(0, 10));
       setAmount('');
       setPaidBy('user1');
@@ -440,8 +495,11 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setCustomSplitMode('ratio');
       setCustomUser1Ratio(settings.user1Ratio);
       setCustomUser1Amount('');
+      setHasDebt(false);
+      setDebtType('borrow');
+      setDebtAmount('');
     }
-  }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx]); // 依存配列を絞り、不要なリセットを防ぐ
+  }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx, settings.user1Ratio, defaultCategoryId]);
 
   const handleSave = async (continueEditing = false) => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
@@ -460,6 +518,10 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
         customSplitMode: isCustomSplit ? customSplitMode : null,
         customUser1Ratio: (isCustomSplit && customSplitMode === 'ratio') ? Number(customUser1Ratio) : null,
         customUser1Amount: (isCustomSplit && customSplitMode === 'amount') ? Number(customUser1Amount) : null,
+        // 💡 借金データの保存
+        hasDebt,
+        debtType: hasDebt ? debtType : null,
+        debtAmount: hasDebt ? Number(debtAmount) : null,
       };
 
       if (isEdit) {
@@ -478,15 +540,15 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
         showToast('記録を保存しました');
         
         if (continueEditing) {
-          // 💡 続けて入力する場合：金額、メモ、個別割り勘をクリア（日付・支払者・ジャンルは維持）
           setAmount('');
           setMemo('');
           setIsCustomSplit(false);
           setCustomSplitMode('ratio');
           setCustomUser1Ratio(settings.user1Ratio);
           setCustomUser1Amount('');
+          setHasDebt(false);
+          setDebtAmount('');
         } else {
-          // ホームへ戻る場合
           const txDate = new Date(date);
           const d = txDate.getDate();
           let targetMonth = txDate.toISOString().slice(0, 7);
@@ -563,6 +625,69 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
+        {/* 💡 個人的な立替・借金設定 */}
+        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 transition-all">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              個人的な立替・借金を含める
+            </label>
+            <button
+              type="button"
+              onClick={() => setHasDebt(!hasDebt)}
+              className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${hasDebt ? 'bg-orange-500' : 'bg-gray-300'}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${hasDebt ? 'translate-x-7' : 'translate-x-1'}`} />
+            </button>
+          </div>
+          
+          {hasDebt && (
+            <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-orange-200 pt-4">
+              <div className="flex gap-2 mb-4 p-1 bg-orange-200/50 rounded-xl">
+                <button 
+                  type="button"
+                  onClick={() => setDebtType('borrow')}
+                  className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'borrow' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  {paidBy === 'user1' ? `${users.user2.name}の肩代わり` : `${users.user1.name}の肩代わり`}
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setDebtType('repay')}
+                  className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'repay' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  自分の借金返済
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-orange-600 mb-1 text-center">立替・返済に充てる金額</label>
+                <div className="relative">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
+                  <input 
+                    type="number" 
+                    inputMode="numeric"
+                    pattern="\d*"
+                    value={debtAmount} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') { setDebtAmount(''); return; }
+                      const numVal = Number(val);
+                      const maxVal = Number(amount) || 0;
+                      if (numVal > maxVal) setDebtAmount(maxVal.toString());
+                      else setDebtAmount(val);
+                    }}
+                    placeholder="0"
+                    className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-lg"
+                  />
+                </div>
+                <p className="text-[9px] text-gray-500 mt-2 text-center">
+                  ※この金額は共同の生活費から除外され、借金残高に反映されます。
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* 個別割り勘設定 */}
         <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all">
           <div className="flex items-center justify-between">
@@ -637,7 +762,8 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                   <div className="flex-1 text-center min-w-0">
                     <label className="block text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name} (残り)</label>
                     <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end truncate">
-                      ¥{Math.max(0, (Number(amount) || 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
+                      {/* 借金分を引いた金額から算出 */}
+                      ¥{Math.max(0, (Number(amount) || 0) - (hasDebt ? Number(debtAmount) || 0 : 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -806,8 +932,12 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
       transactions.forEach(t => {
         if (!t.date) return;
         if (reportCategory !== 'all' && t.categoryId !== reportCategory) return;
-        if (t.date >= currMonthRange.startDate && t.date <= currMonthRange.endDate) currTotal += t.amount;
-        if (t.date >= prevMonthRange.startDate && t.date <= prevMonthRange.endDate) prevTotal += t.amount;
+        // レポートは生活費ベースで集計する
+        let effectiveAmount = t.amount;
+        if (t.hasDebt && t.debtAmount) effectiveAmount = Math.max(0, t.amount - t.debtAmount);
+        
+        if (t.date >= currMonthRange.startDate && t.date <= currMonthRange.endDate) currTotal += effectiveAmount;
+        if (t.date >= prevMonthRange.startDate && t.date <= prevMonthRange.endDate) prevTotal += effectiveAmount;
       });
 
       if (currTotal > maxAmount) maxAmount = currTotal;
@@ -846,7 +976,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     const dData = {};
     currentMonthTransactions.forEach(t => {
       if (!dData[t.date]) dData[t.date] = { total: 0, items: [] };
-      dData[t.date].total += t.amount;
+      dData[t.date].total += t.amount; // カレンダーは実際の支払い総額で表示
       dData[t.date].items.push(t);
     });
 
@@ -897,6 +1027,12 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             {t.isCustomSplit && (
               <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold border border-indigo-100">
                 {t.customSplitMode === 'amount' ? '個別金額' : '個別割合'}
+              </span>
+            )}
+            {/* 💡 追加：借金のバッジ表示 */}
+            {t.hasDebt && (
+              <span className="text-[9px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold border border-orange-100">
+                {t.debtType === 'borrow' ? '肩代わり' : '借金返済'} ¥{t.debtAmount.toLocaleString()}
               </span>
             )}
           </div>
@@ -1105,7 +1241,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
-          {/* 💡 追加：カレンダーで選択した日の詳細リストと「この日に記録」ボタン */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -1843,7 +1978,6 @@ export default function App() {
   const [historySortMode, setHistorySortMode] = useState('date-desc');
   const [searchCategory, setSearchCategory] = useState('all');
   
-  // 💡 追加：カレンダーから記録を追加するための状態
   const [selectedDateForNewTx, setSelectedDateForNewTx] = useState(null);
 
   const [editingTx, setEditingTx] = useState(null);
@@ -1859,6 +1993,20 @@ export default function App() {
   const categories = useMemo(() => {
     return [...DEFAULT_CATEGORIES, ...(settings.customCategories || [])];
   }, [settings.customCategories]);
+
+  // 💡 追加：全期間の取引から「user1の」借金残高を計算する
+  const u1NetDebt = useMemo(() => {
+    let debt = 0;
+    transactions.forEach(t => {
+      if (t.hasDebt && t.debtAmount) {
+        // user1が払った場合：借金が減る（相手の借金が増える）
+        if (t.paidBy === 'user1') debt -= t.debtAmount;
+        // user2が払った場合：借金が増える（相手の借金が減る）
+        else debt += t.debtAmount;
+      }
+    });
+    return debt;
+  }, [transactions]);
 
   useEffect(() => {
     if (!isPassphraseValid) return;
@@ -1956,26 +2104,32 @@ export default function App() {
     let customU2TargetSum = 0;
 
     currentMonthTransactions.forEach(t => {
-      total += t.amount;
-      if (t.paidBy === 'user1') u1Total += t.amount;
-      if (t.paidBy === 'user2') u2Total += t.amount;
+      // 💡 共同生活費に計上する金額（借金・肩代わり分は除く）
+      let effectiveAmount = t.amount;
+      if (t.hasDebt && t.debtAmount) {
+        effectiveAmount = Math.max(0, t.amount - t.debtAmount);
+      }
+
+      total += effectiveAmount;
+      if (t.paidBy === 'user1') u1Total += effectiveAmount;
+      if (t.paidBy === 'user2') u2Total += effectiveAmount;
 
       if (!categoryTotals[t.categoryId]) {
         categoryTotals[t.categoryId] = 0;
       }
-      categoryTotals[t.categoryId] += t.amount;
+      categoryTotals[t.categoryId] += effectiveAmount;
 
       if (t.isCustomSplit) {
         let tU1Target = 0;
         if (t.customSplitMode === 'amount') {
           tU1Target = t.customUser1Amount || 0;
         } else {
-          tU1Target = Math.round(t.amount * ((t.customUser1Ratio ?? 50) / 100));
+          tU1Target = Math.round(effectiveAmount * ((t.customUser1Ratio ?? 50) / 100));
         }
         customU1TargetSum += tU1Target;
-        customU2TargetSum += (t.amount - tU1Target);
+        customU2TargetSum += (effectiveAmount - tU1Target);
       } else {
-        defaultSplitTotal += t.amount;
+        defaultSplitTotal += effectiveAmount;
       }
     });
 
@@ -2083,6 +2237,7 @@ export default function App() {
             settings={settings}
             setActiveTab={setActiveTab}
             setSearchCategory={setSearchCategory}
+            u1NetDebt={u1NetDebt} // 💡 propsとして追加
           />
         )}
         {activeTab === 'add' && (
@@ -2092,7 +2247,7 @@ export default function App() {
             setEditingTx={setEditingTx}
             copyTemplate={copyTemplate}
             setCopyTemplate={setCopyTemplate}
-            selectedDateForNewTx={selectedDateForNewTx} // 💡 カレンダーから渡された日付
+            selectedDateForNewTx={selectedDateForNewTx}
             setActiveTab={setActiveTab}
             setSelectedMonth={setSelectedMonth}
             users={users}
@@ -2143,7 +2298,7 @@ export default function App() {
             settings={settings}
             setCopyTemplate={setCopyTemplate}
             setEditingTx={setEditingTx}
-            setSelectedDateForNewTx={setSelectedDateForNewTx} // 💡 履歴画面から親に日付を伝えるため
+            setSelectedDateForNewTx={setSelectedDateForNewTx}
             setActiveTab={setActiveTab}
             showToast={showToast}
             db={db}
@@ -2214,7 +2369,7 @@ export default function App() {
             onClick={() => {
               setEditingTx(null);
               setCopyTemplate(null);
-              setSelectedDateForNewTx(null); // 💡 通常の追加ボタンからは今日の日付になるようにリセット
+              setSelectedDateForNewTx(null);
               setActiveTab('add');
             }}
             className="flex flex-col items-center justify-center -translate-y-4 px-2 group"
