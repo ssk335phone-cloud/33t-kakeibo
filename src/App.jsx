@@ -48,7 +48,9 @@ import {
   Leaf,
   TrendingUp,
   TrendingDown,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  User,
+  Settings2
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -200,10 +202,9 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
   );
 };
 
-// 💡 折れ線グラフを描画するためのSVGコンポーネント（タップで金額表示するように改善）
+// 💡 折れ線グラフを描画するためのSVGコンポーネント
 const LineChart = ({ data, labels, color }) => {
   const [selectedIndex, setSelectedIndex] = useState(data.length - 1); 
-  // 💡 上の吹き出しと被らないように、最大値に少し余裕を持たせる
   const max = Math.max(...data, 100) * 1.15; 
 
   const isAllZero = max === 115 && data.every(d => d === 0);
@@ -225,7 +226,6 @@ const LineChart = ({ data, labels, color }) => {
         </div>
       )}
       
-      {/* 💡 グラフの高さを広げて、押しつぶされた印象を解消 */}
       <div className="relative w-full" style={{ height: '80px' }}>
         <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
           <polyline 
@@ -239,7 +239,6 @@ const LineChart = ({ data, labels, color }) => {
           />
         </svg>
 
-        {/* 💡 円が楕円に歪まないようHTML要素として配置 */}
         {data.map((val, i) => {
           const x = (i / (Math.max(data.length - 1, 1))) * 100;
           const y = isAllZero ? 100 : 100 - (val / max) * 100;
@@ -312,6 +311,25 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         onNext={handleNextMonth} 
         dateRangeText={dateRangeText}
       />
+
+      {u1NetDebt !== 0 && (
+        <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 未精算の立替バランス</p>
+            {u1NetDebt > 0 ? (
+              <p className="text-sm font-bold text-gray-800 leading-snug">
+                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
+                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
+              </p>
+            ) : (
+              <p className="text-sm font-bold text-gray-800 leading-snug">
+                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
+                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-gray-500 text-sm font-medium mb-1">今月の共同生活費</h2>
@@ -466,25 +484,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {u1NetDebt !== 0 && (
-        <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between mt-6">
-          <div>
-            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 未精算の立替バランス</p>
-            {u1NetDebt > 0 ? (
-              <p className="text-sm font-bold text-gray-800 leading-snug">
-                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
-              </p>
-            ) : (
-              <p className="text-sm font-bold text-gray-800 leading-snug">
-                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
-              </p>
-            )}
           </div>
         </div>
       )}
@@ -672,9 +671,9 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
         )}
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-2">金額</label>
+          <label className="block text-xs font-bold text-gray-500 mb-1">金額</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">¥</span>
             <input 
@@ -684,14 +683,14 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
-              className="w-full pl-10 pr-4 py-4 text-right text-3xl font-bold bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+              className="w-full pl-10 pr-4 py-4 text-right text-3xl font-bold bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-sm"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-2">誰が支払った？</label>
-          <div className="flex gap-3">
+          <label className="block text-xs font-bold text-gray-500 mb-1">誰が支払った？</label>
+          <div className="flex gap-2">
             {Object.values(users).map(u => (
               <button
                 key={u.id}
@@ -708,9 +707,9 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
-        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 transition-all">
+        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 transition-all shadow-sm">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+            <label className="text-xs font-bold text-gray-700 flex items-center gap-2">
               個人的な立替・精算を含める
             </label>
             <button
@@ -770,9 +769,9 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           )}
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all">
+        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all shadow-sm">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">この支出だけ割り勘割合を変更する</label>
+            <label className="text-xs font-bold text-gray-700">この支出だけ割り勘割合を変更する</label>
             <button
               type="button"
               onClick={() => setIsCustomSplit(!isCustomSplit)}
@@ -853,11 +852,11 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-2 flex justify-between items-end">
+          <label className="block text-xs font-bold text-gray-500 mb-2 flex justify-between items-end">
             <span>ジャンル</span>
-            <button onClick={() => setActiveTab('settings')} className="text-xs text-teal-600 hover:underline">追加・編集</button>
+            <button onClick={() => setActiveTab('settings')} className="text-[10px] text-teal-600 hover:underline">追加・編集</button>
           </label>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-2">
             {categories.map(c => {
               const Icon = ICON_MAP[c.iconName] || ICON_MAP.MoreHorizontal;
               const isSelected = categoryId === c.id;
@@ -870,9 +869,9 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                   }`}
                 >
                   <div className={`p-2 rounded-full mb-1 flex-shrink-0 ${isSelected ? 'bg-teal-500 text-white' : c.color}`}>
-                    <Icon size={20} />
+                    <Icon size={18} />
                   </div>
-                  <span className={`text-[11px] leading-tight font-bold text-center break-words w-full px-0.5 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
+                  <span className={`text-[10px] leading-tight font-bold text-center break-words w-full px-0.5 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
                     {c.name}
                   </span>
                 </button>
@@ -881,35 +880,36 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-2">日付</label>
-          <input 
-            type="date" 
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-2">詳細・メモ</label>
-          <input 
-            type="text" 
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder="何に使った？ (任意)"
-            list="memo-options"
-            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-          <datalist id="memo-options">
-            {memoSuggestions.map((m, idx) => (
-              <option key={idx} value={m} />
-            ))}
-          </datalist>
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-bold text-gray-500 mb-1">日付</label>
+            <input 
+              type="date" 
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
+            />
+          </div>
+          <div className="flex-[2]">
+            <label className="block text-xs font-bold text-gray-500 mb-1">詳細・メモ</label>
+            <input 
+              type="text" 
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="何に使った？ (任意)"
+              list="memo-options"
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
+            />
+            <datalist id="memo-options">
+              {memoSuggestions.map((m, idx) => (
+                <option key={idx} value={m} />
+              ))}
+            </datalist>
+          </div>
         </div>
 
         {!isEdit ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 pt-2">
             <button 
               onClick={() => handleSave(false)}
               disabled={isSaving}
@@ -926,13 +926,15 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
             </button>
           </div>
         ) : (
-          <button 
-            onClick={() => handleSave(false)}
-            disabled={isSaving}
-            className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98]"
-          >
-            {isSaving ? '保存中...' : '更新する'}
-          </button>
+          <div className="pt-2">
+            <button 
+              onClick={() => handleSave(false)}
+              disabled={isSaving}
+              className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98]"
+            >
+              {isSaving ? '保存中...' : '更新する'}
+            </button>
+          </div>
         )}
 
       </div>
@@ -1023,7 +1025,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     const dData = {};
     currentMonthTransactions.forEach(t => {
       if (!dData[t.date]) dData[t.date] = { total: 0, items: [] };
-      dData[t.date].total += t.amount; // カレンダーは実際の支払い総額で表示
+      dData[t.date].total += t.amount; 
       dData[t.date].items.push(t);
     });
 
@@ -1281,7 +1283,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
-          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -1849,43 +1850,221 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
 
   return (
     <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
-      <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-        <Settings className="text-teal-600" />
-        各種設定
-      </h2>
+      <div className="flex items-center gap-2 mb-6">
+        <Settings className="text-teal-600" size={24} />
+        <h2 className="text-xl font-bold text-gray-800">各種設定</h2>
+      </div>
 
-      {/* 💡 あなた（現在のスマホ）の設定 */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
-        <h3 className="font-bold text-gray-700 mb-4 text-sm">あなたの設定（このスマホを使う人）</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-2">あなたはどちらですか？</label>
-            <select 
-              value={currentUserType}
-              onChange={(e) => {
-                setCurrentUserType(e.target.value);
-                localStorage.setItem('shareloo_currentUserType', e.target.value);
-                showToast('あなたの設定を保存しました');
-              }}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
-            >
-              <option value="user1">{u1Name}</option>
-              <option value="user2">{u2Name}</option>
-            </select>
-            <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
-              ※ここで設定した人が、記録を追加する際の最初の支払者として選択されます。
-            </p>
+      {/* 👤 基本設定セクション */}
+      <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">基本設定</h3>
+      
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
+        <h4 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-1.5"><Smartphone size={16}/> このスマホを使う人</h4>
+        <select 
+          value={currentUserType}
+          onChange={(e) => {
+            setCurrentUserType(e.target.value);
+            localStorage.setItem('shareloo_currentUserType', e.target.value);
+            showToast('あなたの設定を保存しました');
+          }}
+          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800 text-sm"
+        >
+          <option value="user1">{u1Name}</option>
+          <option value="user2">{u2Name}</option>
+        </select>
+        <p className="text-[9px] text-gray-400 mt-2 leading-relaxed">
+          ※記録を追加する際の最初の支払者として選択されます。
+        </p>
+      </div>
+
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8">
+        <h4 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-1.5"><User size={16}/> メンバーの名前</h4>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-teal-500 flex-shrink-0"></div>
+            <input 
+              type="text" 
+              value={u1Name}
+              onChange={(e) => setU1Name(e.target.value)}
+              placeholder="あなた"
+              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-rose-400 flex-shrink-0"></div>
+            <input 
+              type="text" 
+              value={u2Name}
+              onChange={(e) => setU2Name(e.target.value)}
+              placeholder="パートナー"
+              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-400 focus:outline-none transition-all font-bold text-gray-800 text-sm"
+            />
           </div>
         </div>
       </div>
 
+      {/* 💰 ルール設定セクション */}
+      <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">お金のルール</h3>
+
+      {/* 💡 割り勘ルールをコンパクトに */}
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
+        <h4 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-1.5"><PieChart size={16}/> 割り勘のルール</h4>
+        <div className="flex gap-2 mb-4 p-1 bg-gray-50 rounded-xl border border-gray-100">
+          <button 
+            onClick={() => setMethod('ratio')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${method === 'ratio' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            比率で分ける
+          </button>
+          <button 
+            onClick={() => setMethod('amount')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${method === 'amount' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            金額で分ける
+          </button>
+        </div>
+
+        {method === 'ratio' ? (
+          <div className="animate-in fade-in">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex-1 text-center">
+                <p className="text-[10px] font-bold text-teal-600 mb-1 truncate">{u1Name}</p>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    inputMode="numeric"
+                    pattern="\d*"
+                    value={ratio}
+                    onChange={(e) => setRatio(Math.min(100, Math.max(0, e.target.value)))}
+                    className="w-full text-center text-lg font-bold py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                </div>
+              </div>
+              <span className="font-bold text-gray-300 text-lg">:</span>
+              <div className="flex-1 text-center min-w-0">
+                <p className="text-[10px] font-bold text-rose-500 mb-1 truncate">{u2Name}</p>
+                <div className="w-full text-center text-lg font-bold py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-500 relative">
+                  {100 - ratio}
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                </div>
+              </div>
+            </div>
+            <div className="px-1">
+              <input 
+                type="range" 
+                min="0" max="100" 
+                value={ratio} 
+                onChange={(e) => setRatio(e.target.value)}
+                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 animate-in fade-in">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold text-gray-500 mb-1">負担する人</label>
+                <select 
+                  value={fixedPayer} 
+                  onChange={(e) => setFixedPayer(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
+                >
+                  <option value="user1">{u1Name}</option>
+                  <option value="user2">{u2Name}</option>
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold text-gray-500 mb-1">固定負担額</label>
+                <div className="relative">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
+                  <input 
+                    type="number" 
+                    inputMode="numeric"
+                    pattern="\d*"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full pl-6 pr-2 py-2 text-right text-sm font-bold bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+            <p className="text-[9px] text-gray-400 leading-relaxed bg-gray-50 p-2 rounded-lg border border-gray-100">
+              ※毎月の合計支出がこの金額に満たない場合は指定された人が全額負担します。
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
+        <h4 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-1.5"><CalendarCheck size={16}/> 締め日</h4>
+        <select 
+          value={closingDate}
+          onChange={(e) => setClosingDate(e.target.value)}
+          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800 text-sm"
+        >
+          <option value="end">月末締め</option>
+          {Array.from({length: 28}, (_, i) => i + 1).map(d => (
+            <option key={d} value={d.toString()}>{d}日締め</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
+        <h4 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-1.5"><TrendingDown size={16}/> 目標予算</h4>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
+          <input 
+            type="number" 
+            inputMode="numeric"
+            pattern="\d*"
+            value={monthlyBudget}
+            onChange={(e) => setMonthlyBudget(e.target.value)}
+            className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800 text-sm"
+            placeholder="0 (未設定)"
+          />
+        </div>
+      </div>
+
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8">
+        <h4 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-1.5"><Wallet size={16}/> 立替・借金の初期残高</h4>
+        <div className="space-y-3">
+          <select 
+            value={initialDebtPayer} 
+            onChange={(e) => setInitialDebtPayer(e.target.value)}
+            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all text-gray-800 text-sm"
+          >
+            <option value="none">設定しない（0円）</option>
+            <option value="user1">{u1Name} が立て替えている</option>
+            <option value="user2">{u2Name} が立て替えている</option>
+          </select>
+          {initialDebtPayer !== 'none' && (
+            <div className="relative animate-in fade-in slide-in-from-top-2">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
+              <input 
+                type="number" 
+                inputMode="numeric"
+                pattern="\d*"
+                value={initialDebtAmount}
+                onChange={(e) => setInitialDebtAmount(e.target.value)}
+                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800 text-sm"
+                placeholder="0"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 🛠 カスタマイズセクション */}
+      <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">カスタマイズ</h3>
+
       <button 
         onClick={() => setActiveTab('fixed')}
-        className="w-full bg-indigo-50 border border-indigo-100 p-4 rounded-3xl mb-6 flex items-center justify-between hover:bg-indigo-100 transition-colors"
+        className="w-full bg-indigo-50 border border-indigo-100 p-4 rounded-3xl mb-4 flex items-center justify-between hover:bg-indigo-100 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-600 text-white rounded-full">
-            <CalendarCheck size={20} />
+            <CalendarCheck size={18} />
           </div>
           <div className="text-left">
             <p className="font-bold text-indigo-900 text-sm">毎月の固定費を設定</p>
@@ -1895,100 +2074,18 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         <ChevronRightIcon size={20} className="text-indigo-400" />
       </button>
 
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
-        <h3 className="font-bold text-gray-700 mb-4 text-sm">立替・借金の初期残高</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-2">誰が立て替えている（貸している）状態から始めるか</label>
-            <select 
-              value={initialDebtPayer} 
-              onChange={(e) => setInitialDebtPayer(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all text-gray-800"
-            >
-              <option value="none">設定しない（0円）</option>
-              <option value="user1">{u1Name} が立て替えている</option>
-              <option value="user2">{u2Name} が立て替えている</option>
-            </select>
-          </div>
-          {initialDebtPayer !== 'none' && (
-            <div className="animate-in fade-in slide-in-from-top-2">
-              <label className="block text-xs text-gray-500 mb-1">金額 (円)</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">¥</span>
-                <input 
-                  type="number" 
-                  inputMode="numeric"
-                  pattern="\d*"
-                  value={initialDebtAmount}
-                  onChange={(e) => setInitialDebtAmount(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-          )}
-          <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-            ※アプリを使い始める前の立替残高がある場合に入力してください。
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
-        <h3 className="font-bold text-gray-700 mb-4 text-sm">目標予算</h3>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">今月の目標予算 (円)</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">¥</span>
-            <input 
-              type="number" 
-              inputMode="numeric"
-              pattern="\d*"
-              value={monthlyBudget}
-              onChange={(e) => setMonthlyBudget(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
-              placeholder="0 (未設定の場合は0)"
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-            ※設定すると、ホーム画面に残額のゲージが表示されます。
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
-        <h3 className="font-bold text-gray-700 mb-4 text-sm">家計簿の締め日</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">毎月の締め日</label>
-            <select 
-              value={closingDate}
-              onChange={(e) => setClosingDate(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
-            >
-              <option value="end">月末締め</option>
-              {Array.from({length: 28}, (_, i) => i + 1).map(d => (
-                <option key={d} value={d.toString()}>{d}日締め</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-              例：「25日締め」に設定すると、前月26日〜当月25日の出費が1ヶ月分として集計されます。
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
-        <h3 className="font-bold text-gray-700 mb-4 text-sm">オリジナルジャンル</h3>
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8">
+        <h4 className="font-bold text-gray-700 mb-4 text-sm flex items-center gap-1.5"><Settings2 size={16}/> オリジナルジャンル</h4>
         
         {settings.customCategories && settings.customCategories.length > 0 && (
-          <div className="mb-6 space-y-2">
-            <label className="block text-xs text-gray-500 mb-2">追加済みのジャンル</label>
+          <div className="mb-5 space-y-2">
+            <label className="block text-[10px] text-gray-500 mb-1">追加済みのジャンル</label>
             <div className="flex flex-wrap gap-2">
               {settings.customCategories.map(cat => {
                 const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
                 return (
-                  <div key={cat.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${cat.color} text-sm font-medium`}>
-                    <Icon size={14} />
+                  <div key={cat.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${cat.color} text-[11px] font-bold`}>
+                    <Icon size={12} />
                     {cat.name}
                     <button onClick={() => handleDeleteCategory(cat.id)} className="ml-1 opacity-50 hover:opacity-100 hover:text-red-500 transition-colors">
                       <Trash2 size={12} />
@@ -2003,27 +2100,27 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         {!isAddingCat ? (
           <button 
             onClick={() => setIsAddingCat(true)}
-            className="w-full border-2 border-dashed border-gray-300 text-gray-500 font-bold py-3 rounded-2xl hover:bg-gray-50 hover:border-gray-400 transition-all flex justify-center items-center gap-2"
+            className="w-full border-2 border-dashed border-gray-300 text-gray-500 font-bold py-3 rounded-2xl hover:bg-gray-50 hover:border-gray-400 transition-all flex justify-center items-center gap-2 text-sm"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             新しいジャンルを作成する
           </button>
         ) : (
           <div className="space-y-4 animate-in fade-in bg-gray-50 p-4 rounded-2xl border border-gray-200">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">ジャンル名</label>
+              <label className="block text-[10px] text-gray-500 mb-1">ジャンル名</label>
               <input 
                 type="text" 
                 value={newCatName}
                 onChange={(e) => setNewCatName(e.target.value)}
                 placeholder="例：ペット用品"
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-gray-800"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-gray-800 text-sm"
               />
             </div>
             
             <div>
-              <label className="block text-xs text-gray-500 mb-2">アイコン</label>
-              <div className="flex flex-wrap gap-2">
+              <label className="block text-[10px] text-gray-500 mb-1">アイコン</label>
+              <div className="flex flex-wrap gap-1.5">
                 {Object.keys(ICON_MAP).map(iconKey => {
                   const IconComp = ICON_MAP[iconKey];
                   return (
@@ -2032,7 +2129,7 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
                       onClick={() => setNewCatIcon(iconKey)}
                       className={`p-2 rounded-xl transition-all ${newCatIcon === iconKey ? 'bg-teal-500 text-white shadow-sm scale-110' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100'}`}
                     >
-                      <IconComp size={18} />
+                      <IconComp size={16} />
                     </button>
                   );
                 })}
@@ -2040,155 +2137,44 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
             </div>
 
             <div>
-              <label className="block text-xs text-gray-500 mb-2">テーマカラー</label>
-              <div className="flex flex-wrap gap-2">
+              <label className="block text-[10px] text-gray-500 mb-1">テーマカラー</label>
+              <div className="flex flex-wrap gap-1.5">
                 {COLOR_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}
                     onClick={() => setNewCatColor(preset)}
-                    className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${preset.color.split(' ')[0]} ${newCatColor.hexColor === preset.hexColor ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-105'}`}
+                    className={`w-7 h-7 rounded-full transition-all flex items-center justify-center ${preset.color.split(' ')[0]} ${newCatColor.hexColor === preset.hexColor ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'hover:scale-105'}`}
                     style={{ backgroundColor: preset.color.includes('bg-') ? undefined : preset.hexColor }}
                   >
-                    {newCatColor.hexColor === preset.hexColor && <Check size={14} className={preset.color.split(' ')[1]} />}
+                    {newCatColor.hexColor === preset.hexColor && <Check size={12} className={preset.color.split(' ')[1]} />}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
-              <div className="text-xs text-gray-500 font-bold w-16">プレビュー</div>
-              <div className={`p-2 rounded-full ${newCatColor.color}`}>
-                 {React.createElement(ICON_MAP[newCatIcon], { size: 18 })}
+            <div className="mt-4 flex items-center gap-3 p-2 bg-white rounded-xl border border-gray-200">
+              <div className="text-[10px] text-gray-400 font-bold w-12 text-center">プレビュー</div>
+              <div className={`p-1.5 rounded-full ${newCatColor.color}`}>
+                 {React.createElement(ICON_MAP[newCatIcon], { size: 14 })}
               </div>
-              <span className="font-bold text-gray-800 text-sm">{newCatName || 'ジャンル名'}</span>
+              <span className="font-bold text-gray-800 text-xs">{newCatName || 'ジャンル名'}</span>
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <button onClick={() => setIsAddingCat(false)} className="flex-1 py-2.5 text-gray-500 font-bold border border-gray-200 bg-white rounded-xl hover:bg-gray-100 transition-colors">キャンセル</button>
-              <button onClick={handleAddCategory} disabled={isSavingCat} className="flex-1 py-2.5 bg-teal-600 text-white font-bold rounded-xl disabled:opacity-50 hover:bg-teal-700 transition-colors">作成する</button>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setIsAddingCat(false)} className="flex-1 py-2 text-gray-500 font-bold border border-gray-200 bg-white rounded-xl hover:bg-gray-100 transition-colors text-xs">キャンセル</button>
+              <button onClick={handleAddCategory} disabled={isSavingCat} className="flex-1 py-2 bg-teal-600 text-white font-bold rounded-xl disabled:opacity-50 hover:bg-teal-700 transition-colors text-xs">作成する</button>
             </div>
           </div>
         )}
       </div>
 
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
-        <h3 className="font-bold text-gray-700 mb-4 text-sm">メンバーの名前</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">メンバー1 (左側・ティール色)</label>
-            <input 
-              type="text" 
-              value={u1Name}
-              onChange={(e) => setU1Name(e.target.value)}
-              placeholder="あなた"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all font-bold text-gray-800"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">メンバー2 (右側・ローズ色)</label>
-            <input 
-              type="text" 
-              value={u2Name}
-              onChange={(e) => setU2Name(e.target.value)}
-              placeholder="パートナー"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-rose-400 focus:outline-none transition-all font-bold text-gray-800"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
-        <h3 className="font-bold text-gray-700 mb-4 text-sm">割り勘のルール</h3>
-        <div className="flex gap-2 mb-8 p-1.5 bg-gray-100 rounded-2xl">
-          <button 
-            onClick={() => setMethod('ratio')}
-            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${method === 'ratio' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            比率で分ける
-          </button>
-          <button 
-            onClick={() => setMethod('amount')}
-            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${method === 'amount' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            金額で分ける
-          </button>
-        </div>
-
-        {method === 'ratio' ? (
-          <div className="space-y-6 animate-in fade-in">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-4">負担割合 (%)</label>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex-1 text-center">
-                  <p className="text-xs font-bold text-teal-600 mb-2">{u1Name}</p>
-                  <input 
-                    type="number" 
-                    inputMode="numeric"
-                    pattern="\d*"
-                    value={ratio}
-                    onChange={(e) => setRatio(Math.min(100, Math.max(0, e.target.value)))}
-                    className="w-full text-center text-3xl font-bold py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
-                  />
-                </div>
-                <span className="font-bold text-gray-300 text-2xl">:</span>
-                <div className="flex-1 text-center">
-                  <p className="text-xs font-bold text-rose-500 mb-2">{u2Name}</p>
-                  <div className="w-full text-center text-3xl font-bold py-3 bg-gray-100 border border-gray-100 rounded-2xl text-gray-400">
-                    {100 - ratio}
-                  </div>
-                </div>
-              </div>
-              <div className="px-2">
-                <input 
-                  type="range" 
-                  min="0" max="100" 
-                  value={ratio} 
-                  onChange={(e) => setRatio(e.target.value)}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500"
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6 animate-in fade-in">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-2">固定で負担する人</label>
-              <select 
-                value={fixedPayer} 
-                onChange={(e) => setFixedPayer(e.target.value)}
-                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
-              >
-                <option value="user1">{u1Name}</option>
-                <option value="user2">{u2Name}</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-2">毎月の固定負担額 (円)</label>
-              <div className="relative">
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">¥</span>
-                <input 
-                  type="number" 
-                  inputMode="numeric"
-                  pattern="\d*"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full pl-12 pr-5 py-4 text-right text-2xl font-bold bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-3 bg-gray-50 p-3 rounded-lg border border-gray-100 leading-relaxed">
-                ※毎月の合計支出がこの金額に満たない場合は、指定された人が全額負担することになります。
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
+      {/* 💾 保存ボタン */}
       <button 
         onClick={handleSaveGeneral}
         disabled={isSaving}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50 mt-4 mb-4"
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50 sticky bottom-4 z-10"
       >
-        {isSaving ? '保存中...' : '設定を保存する'}
+        {isSaving ? '保存中...' : 'すべての設定を保存する'}
       </button>
     </div>
   );
@@ -2220,7 +2206,6 @@ export default function App() {
   const [historySortMode, setHistorySortMode] = useState('date-desc');
   const [searchCategory, setSearchCategory] = useState('all');
   
-  // 💡 スマホの利用者が「user1」か「user2」かを記憶する
   const [currentUserType, setCurrentUserType] = useState(() => {
     return localStorage.getItem('shareloo_currentUserType') || 'user1';
   });
