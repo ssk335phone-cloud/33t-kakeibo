@@ -211,7 +211,6 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
 
 // 💡 折れ線グラフを描画するためのSVGコンポーネント
 const LineChart = ({ data, labels, color }) => {
-  // 💡 値が登録されている一番新しい月を初期選択とする
   const [selectedIndex, setSelectedIndex] = useState(() => {
     for (let i = data.length - 1; i >= 0; i--) {
       if (data[i] > 0) return i;
@@ -542,6 +541,12 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     return [...new Set(memos)];
   }, [transactions]);
 
+  // 💡 同じ日付の既存トランザクションを取得
+  const existingTransactions = useMemo(() => {
+    if (!transactions) return [];
+    return transactions.filter(t => t.date === date).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }, [transactions, date]);
+
   useEffect(() => {
     if (isEdit && txToEdit) {
       setDate(txToEdit.date);
@@ -659,7 +664,12 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
             }
           }
           setSelectedMonth(targetMonth);
-          setActiveTab('home');
+          
+          if (selectedDateForNewTx) {
+            setActiveTab('history');
+          } else {
+            setActiveTab('home');
+          }
         }
       }
     } catch (error) {
@@ -924,6 +934,31 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
+        {/* 💡 同じ日付の登録済みデータを表示（二重登録防止） */}
+        {existingTransactions.length > 0 && (
+          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+            <h3 className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-1.5">
+              <List size={14} className="text-gray-400" /> 
+              この日 ({date.replace(/-/g, '/')}) の記録
+            </h3>
+            <div className="space-y-2">
+              {existingTransactions.map(t => {
+                const cat = categories.find(c => c.id === t.categoryId) || { name: '不明' };
+                const isEditingThis = isEdit && txToEdit?.id === t.id;
+                return (
+                  <div key={t.id} className={`flex justify-between items-center p-2.5 rounded-xl shadow-sm border ${isEditingThis ? 'bg-teal-50 border-teal-200' : 'bg-white border-gray-100'}`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                       <span className={`text-[10px] font-bold whitespace-nowrap px-1.5 py-0.5 rounded ${isEditingThis ? 'bg-teal-100 text-teal-600' : 'bg-gray-50 text-gray-400'}`}>{cat.name}</span>
+                       <span className={`font-bold text-xs truncate ${isEditingThis ? 'text-teal-700' : 'text-gray-700'}`}>{t.memo || 'メモなし'}</span>
+                    </div>
+                    <span className={`font-bold text-xs ml-2 whitespace-nowrap ${isEditingThis ? 'text-teal-800' : 'text-gray-800'}`}>¥{t.amount.toLocaleString()}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {!isEdit ? (
           <div className="flex flex-col gap-3 pt-2">
             <button 
@@ -931,7 +966,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               disabled={isSaving}
               className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98]"
             >
-              {isSaving ? '保存中...' : '登録してホームへ'}
+              {isSaving ? '保存中...' : (selectedDateForNewTx ? '登録してカレンダーへ' : '登録してホームへ')}
             </button>
             <button 
               onClick={() => handleSave(true)}
@@ -958,8 +993,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   );
 };
 
-const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory }) => {
-  const [historyTab, setHistoryTab] = useState('list');
+const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory, historyTab, setHistoryTab }) => {
   const [selectedCalDate, setSelectedCalDate] = useState(null);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -2203,6 +2237,8 @@ export default function App() {
   const [loginError, setLoginError] = useState(false);
 
   const [activeTab, setActiveTab] = useState('home');
+  const [historyTab, setHistoryTab] = useState('list');
+  
   const [transactions, setTransactions] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [settings, setSettings] = useState({ 
@@ -2551,6 +2587,8 @@ export default function App() {
             appId={appId}
             searchCategory={searchCategory}
             setSearchCategory={setSearchCategory}
+            historyTab={historyTab} 
+            setHistoryTab={setHistoryTab} 
           />
         )}
         {activeTab === 'report' && (
