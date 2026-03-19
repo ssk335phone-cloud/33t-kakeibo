@@ -313,25 +313,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         dateRangeText={dateRangeText}
       />
 
-      {u1NetDebt !== 0 && (
-        <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 未精算の立替バランス</p>
-            {u1NetDebt > 0 ? (
-              <p className="text-sm font-bold text-gray-800 leading-snug">
-                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
-              </p>
-            ) : (
-              <p className="text-sm font-bold text-gray-800 leading-snug">
-                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-gray-500 text-sm font-medium mb-1">今月の共同生活費</h2>
         <div className="text-4xl font-bold text-gray-800 mb-4 break-words">
@@ -485,6 +466,25 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {u1NetDebt !== 0 && (
+        <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between mt-6">
+          <div>
+            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 未精算の立替バランス</p>
+            {u1NetDebt > 0 ? (
+              <p className="text-sm font-bold text-gray-800 leading-snug">
+                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
+                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
+              </p>
+            ) : (
+              <p className="text-sm font-bold text-gray-800 leading-snug">
+                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
+                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -2502,7 +2502,7 @@ export default function App() {
             txCollection={txCollection}
             showToast={showToast}
             transactions={transactions}
-            currentUserType={currentUserType} // 💡 追記
+            currentUserType={currentUserType} 
           />
         )}
         {activeTab === 'edit' && (
@@ -2523,7 +2523,7 @@ export default function App() {
             txCollection={txCollection}
             showToast={showToast}
             transactions={transactions}
-            currentUserType={currentUserType} // 💡 追記
+            currentUserType={currentUserType} 
           />
         )}
         {activeTab === 'history' && (
@@ -2585,8 +2585,8 @@ export default function App() {
             settingsDocRef={settingsDocRef}
             showToast={showToast}
             setActiveTab={setActiveTab}
-            currentUserType={currentUserType} // 💡 追記
-            setCurrentUserType={setCurrentUserType} // 💡 追記
+            currentUserType={currentUserType} 
+            setCurrentUserType={setCurrentUserType} 
           />
         )}
       </main>
