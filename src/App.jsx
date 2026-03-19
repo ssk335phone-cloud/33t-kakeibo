@@ -312,25 +312,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         dateRangeText={dateRangeText}
       />
 
-      {u1NetDebt !== 0 && (
-        <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 未精算の立替バランス</p>
-            {u1NetDebt > 0 ? (
-              <p className="text-sm font-bold text-gray-800 leading-snug">
-                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
-              </p>
-            ) : (
-              <p className="text-sm font-bold text-gray-800 leading-snug">
-                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-gray-500 text-sm font-medium mb-1">今月の共同生活費</h2>
         <div className="text-4xl font-bold text-gray-800 mb-4 break-words">
@@ -458,7 +439,8 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
             {stats.categoryTotals.map(c => {
               const cat = categories.find(cat => cat.id === c.id) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
               const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
-              const percentage = ((c.amount / stats.total) * 100).toFixed(1);
+              // 💡 変更：.0% を削除してスッキリ表示
+              const percentage = ((c.amount / stats.total) * 100).toFixed(1).replace(/\.0$/, '');
               
               return (
                 <div 
@@ -484,6 +466,26 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* 💡 未精算残高のブロックを一番下へ */}
+      {u1NetDebt !== 0 && (
+        <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between mt-6">
+          <div>
+            <p className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Wallet size={14}/> 未精算の立替バランス</p>
+            {u1NetDebt > 0 ? (
+              <p className="text-sm font-bold text-gray-800 leading-snug">
+                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
+                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
+              </p>
+            ) : (
+              <p className="text-sm font-bold text-gray-800 leading-snug">
+                あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
+                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -630,6 +632,9 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           setCustomUser1Amount('');
           setHasDebt(false);
           setDebtAmount('');
+          // 💡 追加: 連続入力時に画面を上までスクロールする
+          const mainArea = document.getElementById('main-scroll-area');
+          if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
           const txDate = new Date(date);
           const d = txDate.getDate();
@@ -1283,6 +1288,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
+          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -1850,10 +1856,10 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
 
   return (
     <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
-      <div className="flex items-center gap-2 mb-6">
-        <Settings className="text-teal-600" size={24} />
-        <h2 className="text-xl font-bold text-gray-800">各種設定</h2>
-      </div>
+      <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <Settings className="text-teal-600" />
+        各種設定
+      </h2>
 
       {/* 👤 基本設定セクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">基本設定</h3>
@@ -2452,7 +2458,8 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      {/* 💡 id="main-scroll-area" を追加してスクロール制御に使用 */}
+      <main className="flex-1 overflow-y-auto" id="main-scroll-area">
         {activeTab === 'home' && (
           <HomeView 
             selectedMonth={selectedMonth}
