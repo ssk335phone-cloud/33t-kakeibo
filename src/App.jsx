@@ -45,7 +45,10 @@ import {
   Pill,
   Smile,
   Baby,
-  Leaf
+  Leaf,
+  TrendingUp,
+  TrendingDown,
+  ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -67,7 +70,6 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-// ネットワーク環境による接続エラーを防ぐため、ロングポーリングを自動検出するよう設定
 const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true
 });
@@ -198,6 +200,32 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
   );
 };
 
+// 💡 折れ線グラフを描画するためのSVGコンポーネント
+const LineChart = ({ data, labels, color }) => {
+  const max = Math.max(...data, 100); 
+  const points = data.map((val, i) => {
+    const x = (i / (Math.max(data.length - 1, 1))) * 100;
+    const y = 100 - (val / max) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <div className="w-full mt-2">
+      <svg className="w-full overflow-visible" style={{ height: '50px' }} viewBox="0 -10 100 120" preserveAspectRatio="none">
+        <polyline points={points} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {data.map((val, i) => {
+          const x = (i / (Math.max(data.length - 1, 1))) * 100;
+          const y = 100 - (val / max) * 100;
+          return <circle key={i} cx={x} cy={y} r="3" fill={color} stroke="white" strokeWidth="1.5" />;
+        })}
+      </svg>
+      <div className="flex justify-between text-[8px] sm:text-[9px] text-gray-400 mt-3 font-bold px-1 opacity-70">
+        {labels.map((label, i) => <span key={i}>{label}</span>)}
+      </div>
+    </div>
+  );
+};
+
 const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt }) => {
   let cumulativePercent = 0;
   const gradientStops = stats.categoryTotals.length > 0 
@@ -211,7 +239,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
       }).join(', ')
     : '#f3f4f6 0% 100%';
 
-  // 💡 借金と今月の精算額を相殺した最終的な受渡金額
   const finalDiff = stats.u1Diff - u1NetDebt;
 
   return (
@@ -224,7 +251,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         dateRangeText={dateRangeText}
       />
 
-      {/* 💡 借金・立替残高の表示 */}
       {u1NetDebt !== 0 && (
         <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between">
           <div>
@@ -327,7 +353,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
           </div>
         </div>
         
-        {/* 💡 借金を含めた最終精算額 */}
         {u1NetDebt !== 0 && (
           <div className="mt-2 pt-3 border-t border-teal-200/50">
             <p className="text-[10px] text-teal-700 font-medium mb-1 flex items-center gap-1">
@@ -427,15 +452,13 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const [memo, setMemo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
-  // 個別割り勘ステート
   const [isCustomSplit, setIsCustomSplit] = useState(false);
   const [customSplitMode, setCustomSplitMode] = useState('ratio');
   const [customUser1Ratio, setCustomUser1Ratio] = useState(settings.user1Ratio);
   const [customUser1Amount, setCustomUser1Amount] = useState('');
 
-  // 💡 借金・立替ステート
   const [hasDebt, setHasDebt] = useState(false);
-  const [debtType, setDebtType] = useState('borrow'); // borrow: 相手の肩代わり, repay: 自分の返済
+  const [debtType, setDebtType] = useState('borrow'); 
   const [debtAmount, setDebtAmount] = useState('');
 
   const memoSuggestions = useMemo(() => {
@@ -455,7 +478,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setCustomSplitMode(txToEdit.customSplitMode || 'ratio');
       setCustomUser1Ratio(txToEdit.customUser1Ratio ?? settings.user1Ratio);
       setCustomUser1Amount(txToEdit.customUser1Amount ?? '');
-      // 借金設定の読み込み
       setHasDebt(!!txToEdit.hasDebt);
       setDebtType(txToEdit.debtType || 'borrow');
       setDebtAmount(txToEdit.debtAmount ? txToEdit.debtAmount.toString() : '');
@@ -518,7 +540,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
         customSplitMode: isCustomSplit ? customSplitMode : null,
         customUser1Ratio: (isCustomSplit && customSplitMode === 'ratio') ? Number(customUser1Ratio) : null,
         customUser1Amount: (isCustomSplit && customSplitMode === 'amount') ? Number(customUser1Amount) : null,
-        // 💡 借金データの保存
         hasDebt,
         debtType: hasDebt ? debtType : null,
         debtAmount: hasDebt ? Number(debtAmount) : null,
@@ -625,7 +646,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
-        {/* 💡 個人的な立替・借金設定 */}
         <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 transition-all">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -688,7 +708,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           )}
         </div>
 
-        {/* 個別割り勘設定 */}
         <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-gray-700">この支出だけ割り勘割合を変更する</label>
@@ -762,7 +781,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                   <div className="flex-1 text-center min-w-0">
                     <label className="block text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name} (残り)</label>
                     <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end truncate">
-                      {/* 借金分を引いた金額から算出 */}
                       ¥{Math.max(0, (Number(amount) || 0) - (hasDebt ? Number(debtAmount) || 0 : 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
                     </div>
                   </div>
@@ -862,8 +880,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
 
 const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory }) => {
   const [historyTab, setHistoryTab] = useState('list');
-  const [reportYear, setReportYear] = useState(new Date().getFullYear());
-  const [reportCategory, setReportCategory] = useState('all');
   const [selectedCalDate, setSelectedCalDate] = useState(null);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -916,37 +932,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
       return { type: 'grouped', data: groups, formatKey: formatCat };
     }
   }, [currentMonthTransactions, historySortMode, categories, searchQuery, searchCategory]);
-
-  const reportData = useMemo(() => {
-    const data = [];
-    let maxAmount = 0;
-
-    for (let i = 1; i <= 12; i++) {
-      const monthStr = i.toString().padStart(2, '0');
-      const currMonthRange = getMonthDateRange(`${reportYear}-${monthStr}`, settings.closingDate);
-      const prevMonthRange = getMonthDateRange(`${reportYear - 1}-${monthStr}`, settings.closingDate);
-
-      let currTotal = 0;
-      let prevTotal = 0;
-
-      transactions.forEach(t => {
-        if (!t.date) return;
-        if (reportCategory !== 'all' && t.categoryId !== reportCategory) return;
-        // レポートは生活費ベースで集計する
-        let effectiveAmount = t.amount;
-        if (t.hasDebt && t.debtAmount) effectiveAmount = Math.max(0, t.amount - t.debtAmount);
-        
-        if (t.date >= currMonthRange.startDate && t.date <= currMonthRange.endDate) currTotal += effectiveAmount;
-        if (t.date >= prevMonthRange.startDate && t.date <= prevMonthRange.endDate) prevTotal += effectiveAmount;
-      });
-
-      if (currTotal > maxAmount) maxAmount = currTotal;
-      if (prevTotal > maxAmount) maxAmount = prevTotal;
-
-      data.push({ month: i, currTotal, prevTotal });
-    }
-    return { data, maxAmount: maxAmount === 0 ? 1 : maxAmount }; 
-  }, [transactions, reportYear, reportCategory, settings.closingDate]);
 
   const { calendarDays, dailyData } = useMemo(() => {
     if (!startDate || !endDate) return { calendarDays: [], dailyData: {} };
@@ -1029,7 +1014,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                 {t.customSplitMode === 'amount' ? '個別金額' : '個別割合'}
               </span>
             )}
-            {/* 💡 追加：借金のバッジ表示 */}
             {t.hasDebt && (
               <span className="text-[9px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold border border-orange-100">
                 {t.debtType === 'borrow' ? '肩代わり' : '借金返済'} ¥{t.debtAmount.toLocaleString()}
@@ -1083,12 +1067,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
           className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'calendar' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
           <CalendarIcon size={16} /> カレンダー
-        </button>
-        <button 
-          onClick={() => setHistoryTab('report')}
-          className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'report' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          <BarChart3 size={16} /> レポート
         </button>
       </div>
 
@@ -1281,102 +1259,215 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
           )}
         </div>
       )}
+    </div>
+  );
+};
 
-      {historyTab === 'report' && (
-        <div className="space-y-6 animate-in fade-in">
+const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, categories }) => {
+  const [reportMode, setReportMode] = useState('monthly'); 
+  const [reportYear, setReportYear] = useState(new Date().getFullYear());
+
+  const handlePrevMonth = () => {
+    const d = new Date(selectedMonth + '-01');
+    d.setMonth(d.getMonth() - 1);
+    setSelectedMonth(d.toISOString().slice(0, 7));
+  };
+  const handleNextMonth = () => {
+    const d = new Date(selectedMonth + '-01');
+    d.setMonth(d.getMonth() + 1);
+    setSelectedMonth(d.toISOString().slice(0, 7));
+  };
+
+  const monthlyReport = useMemo(() => {
+    const data = [];
+    const labels = [];
+    const categoriesData = {}; 
+    categories.forEach(c => categoriesData[c.id] = Array(6).fill(0));
+
+    const [y, m] = selectedMonth.split('-').map(Number);
+    let maxTotal = 0;
+
+    for (let i = 5; i >= 0; i--) {
+      let d = new Date(y, m - 1 - i, 1);
+      let targetYear = d.getFullYear();
+      let targetMonthStr = (d.getMonth() + 1).toString().padStart(2, '0');
+      let monthLabel = `${d.getMonth() + 1}月`;
+
+      const range = getMonthDateRange(`${targetYear}-${targetMonthStr}`, settings.closingDate);
+
+      let total = 0;
+      transactions.forEach(t => {
+        if (!t.date) return;
+        let effectiveAmount = t.amount;
+        if (t.hasDebt && t.debtAmount) effectiveAmount = Math.max(0, t.amount - t.debtAmount);
+        
+        if (t.date >= range.startDate && t.date <= range.endDate) {
+          total += effectiveAmount;
+          if (categoriesData[t.categoryId]) {
+            categoriesData[t.categoryId][5 - i] += effectiveAmount;
+          }
+        }
+      });
+
+      if (total > maxTotal) maxTotal = total;
+      data.push({ label: monthLabel, total });
+      labels.push(monthLabel);
+    }
+
+    const currMonth = data[5].total;
+    const prevMonth = data[4].total;
+    const diff = currMonth - prevMonth;
+
+    return { data, labels, maxTotal: maxTotal || 1, categoriesData, currMonth, prevMonth, diff };
+  }, [transactions, selectedMonth, settings.closingDate, categories]);
+
+  const yearlyReport = useMemo(() => {
+    const data = [];
+    const labels = [];
+    const categoriesData = {}; 
+    categories.forEach(c => categoriesData[c.id] = Array(12).fill(0));
+    let maxTotal = 0;
+
+    for (let i = 1; i <= 12; i++) {
+      const monthStr = i.toString().padStart(2, '0');
+      const currMonthRange = getMonthDateRange(`${reportYear}-${monthStr}`, settings.closingDate);
+      
+      let currTotal = 0;
+
+      transactions.forEach(t => {
+        if (!t.date) return;
+        let effectiveAmount = t.amount;
+        if (t.hasDebt && t.debtAmount) effectiveAmount = Math.max(0, t.amount - t.debtAmount);
+        
+        if (t.date >= currMonthRange.startDate && t.date <= currMonthRange.endDate) {
+          currTotal += effectiveAmount;
+          if (categoriesData[t.categoryId]) {
+            categoriesData[t.categoryId][i - 1] += effectiveAmount;
+          }
+        }
+      });
+
+      if (currTotal > maxTotal) maxTotal = currTotal;
+      data.push({ month: i, currTotal });
+      labels.push(`${i}月`);
+    }
+    return { data, labels, maxTotal: maxTotal || 1, categoriesData }; 
+  }, [transactions, reportYear, settings.closingDate, categories]);
+
+  return (
+    <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
+      <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
+        <button 
+          onClick={() => setReportMode('monthly')}
+          className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${reportMode === 'monthly' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          月間推移 (前月比)
+        </button>
+        <button 
+          onClick={() => setReportMode('yearly')}
+          className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${reportMode === 'yearly' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          年間推移 (昨年比)
+        </button>
+      </div>
+
+      {reportMode === 'monthly' ? (
+        <div className="animate-in fade-in">
+          <div className="flex items-center justify-between bg-white px-3 py-3 rounded-2xl border border-gray-100 shadow-sm mb-4">
+            <button onClick={handlePrevMonth} className="p-2 hover:bg-gray-50 rounded-xl text-gray-500 transition-colors">
+              <ChevronLeft size={20} />
+            </button>
+            <span className="font-bold text-gray-800 text-sm">{selectedMonth.replace('-', '年')}月 (過去6ヶ月)</span>
+            <button onClick={handleNextMonth} className="p-2 hover:bg-gray-50 rounded-xl text-gray-500 transition-colors">
+              <ChevronRight size={20} />
+            </button>
+          </div>
+
           <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-4">
-            <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
-              <button onClick={() => setReportYear(y => y - 1)} className="p-1 hover:bg-white rounded-lg transition-colors text-gray-500">
-                <ChevronLeft size={20} />
-              </button>
-              <span className="font-bold text-gray-800 text-base">{reportYear}年 (昨年比較)</span>
-              <button onClick={() => setReportYear(y => y + 1)} className="p-1 hover:bg-white rounded-lg transition-colors text-gray-500">
-                <ChevronRight size={20} />
-              </button>
+            <p className="text-xs font-bold text-gray-500">全体支出の推移</p>
+            <div className="flex items-end gap-3 mb-2">
+              <span className="text-3xl font-black text-gray-800">¥{monthlyReport.currMonth.toLocaleString()}</span>
+              <div className={`flex items-center gap-1 text-sm font-bold pb-1 ${monthlyReport.diff > 0 ? 'text-red-500' : 'text-teal-600'}`}>
+                {monthlyReport.diff > 0 ? <TrendingUp size={16}/> : monthlyReport.diff < 0 ? <TrendingDown size={16}/> : null}
+                {monthlyReport.diff > 0 ? `+¥${monthlyReport.diff.toLocaleString()}` : monthlyReport.diff < 0 ? `-¥${Math.abs(monthlyReport.diff).toLocaleString()}` : '±¥0'}
+                <span className="text-xs text-gray-400 font-medium ml-1">前月比</span>
+              </div>
             </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">対象ジャンル</label>
-              <select 
-                value={reportCategory}
-                onChange={(e) => setReportCategory(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <option value="all">すべての支出 (合計)</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
+            <LineChart data={monthlyReport.data.map(d=>d.total)} labels={monthlyReport.labels} color="#0d9488" />
           </div>
 
-          <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="flex items-center justify-end gap-4 mb-4 text-[10px] font-bold text-gray-500">
-              <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div>昨年 ({reportYear - 1})</div>
-              <div className="flex items-center gap-1"><div className="w-3 h-3 bg-teal-500 rounded-sm"></div>今年 ({reportYear})</div>
-            </div>
+          <h3 className="font-bold text-gray-700 text-sm ml-1 mt-8 mb-3">ジャンル別の推移</h3>
+          <div className="space-y-4">
+            {categories.map(cat => {
+              const dataPoints = monthlyReport.categoriesData[cat.id];
+              const sum = dataPoints.reduce((a,b)=>a+b,0);
+              if (sum === 0) return null;
+              const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
 
-            <div className="flex items-end gap-3 h-48 overflow-x-auto pb-2 pt-4 px-1 snap-x no-scrollbar">
-              {reportData.data.map(d => {
-                const currH = reportData.maxAmount > 1 ? (d.currTotal / reportData.maxAmount) * 100 : 0;
-                const prevH = reportData.maxAmount > 1 ? (d.prevTotal / reportData.maxAmount) * 100 : 0;
-                return (
-                  <div key={d.month} className="flex flex-col items-center gap-2 snap-center min-w-[36px]">
-                    <div className="flex items-end gap-1 h-32 w-full justify-center">
-                      <div className="w-3 h-full bg-gray-50 rounded-t-sm relative group flex items-end">
-                        <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] bg-gray-800 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
-                          ¥{d.prevTotal.toLocaleString()}
-                        </div>
-                        <div className="w-full bg-gray-300 rounded-t-sm transition-all duration-700" style={{height: `${prevH}%`}}></div>
-                      </div>
-                      <div className="w-3 h-full bg-teal-50 rounded-t-sm relative group flex items-end">
-                        <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] bg-teal-800 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
-                          ¥{d.currTotal.toLocaleString()}
-                        </div>
-                        <div className="w-full bg-teal-500 rounded-t-sm transition-all duration-700 delay-100" style={{height: `${currH}%`}}></div>
-                      </div>
+              return (
+                <div key={cat.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded-full ${cat.color}`}><Icon size={14} /></div>
+                      <span className="font-bold text-gray-700 text-sm">{cat.name}</span>
                     </div>
-                    <span className="text-[10px] text-gray-500 font-bold">{d.month}月</span>
+                    <span className="text-xs font-bold text-gray-500">
+                      直近6ヶ月計: ¥{sum.toLocaleString()}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+                  <LineChart data={dataPoints} labels={monthlyReport.labels} color={cat.hexColor} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="animate-in fade-in">
+          <div className="flex items-center justify-between bg-white px-3 py-3 rounded-2xl border border-gray-100 shadow-sm mb-4">
+            <button onClick={() => setReportYear(y => y - 1)} className="p-2 hover:bg-gray-50 rounded-xl text-gray-500 transition-colors">
+              <ChevronLeft size={20} />
+            </button>
+            <span className="font-bold text-gray-800 text-sm">{reportYear}年 (年間推移)</span>
+            <button onClick={() => setReportYear(y => y + 1)} className="p-2 hover:bg-gray-50 rounded-xl text-gray-500 transition-colors">
+              <ChevronRight size={20} />
+            </button>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-              <span className="text-xs font-bold text-gray-500">月ごとの詳細比較</span>
+          <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-4">
+            <p className="text-xs font-bold text-gray-500">全体支出の年間推移</p>
+            <div className="flex items-end gap-3 mb-2">
+              <span className="text-3xl font-black text-gray-800">
+                ¥{yearlyReport.data.reduce((a, b) => a + b.currTotal, 0).toLocaleString()}
+              </span>
+              <span className="text-xs text-gray-400 font-medium pb-1.5">年間合計</span>
             </div>
-            <div className="divide-y divide-gray-50 max-h-60 overflow-y-auto">
-              {reportData.data.slice().reverse().map(d => {
-                if (d.currTotal === 0 && d.prevTotal === 0) return null; 
-                const diff = d.currTotal - d.prevTotal;
-                return (
-                  <div key={d.month} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                    <div className="font-bold text-gray-700 w-10">{d.month}月</div>
-                    <div className="flex-1 px-4">
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-gray-400">昨年</span>
-                        <span className="font-medium text-gray-600">¥{d.prevTotal.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-teal-600 font-bold">今年</span>
-                        <span className="font-bold text-teal-700">¥{d.currTotal.toLocaleString()}</span>
-                      </div>
+            <LineChart data={yearlyReport.data.map(d=>d.currTotal)} labels={yearlyReport.labels.map(l => l.replace('月',''))} color="#0d9488" />
+          </div>
+
+          <h3 className="font-bold text-gray-700 text-sm ml-1 mt-8 mb-3">ジャンル別の年間推移</h3>
+          <div className="space-y-4">
+            {categories.map(cat => {
+              const dataPoints = yearlyReport.categoriesData[cat.id];
+              const sum = dataPoints.reduce((a,b)=>a+b,0);
+              if (sum === 0) return null;
+              const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
+
+              return (
+                <div key={cat.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded-full ${cat.color}`}><Icon size={14} /></div>
+                      <span className="font-bold text-gray-700 text-sm">{cat.name}</span>
                     </div>
-                    <div className="w-20 text-right flex flex-col items-end justify-center">
-                      <span className="text-[9px] text-gray-400 mb-0.5">昨年比</span>
-                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${diff > 0 ? 'bg-red-50 text-red-600' : diff < 0 ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                        {diff > 0 ? '+' : ''}{diff === 0 ? '±0' : diff.toLocaleString()}
-                      </span>
-                    </div>
+                    <span className="text-xs font-bold text-gray-500">
+                      年間累計: ¥{sum.toLocaleString()}
+                    </span>
                   </div>
-                );
-              })}
-              {reportData.data.every(d => d.currTotal === 0 && d.prevTotal === 0) && (
-                <div className="p-6 text-center text-xs text-gray-400 font-medium">データがありません</div>
-              )}
-            </div>
+                  <LineChart data={dataPoints} labels={yearlyReport.labels.map(l => l.replace('月',''))} color={cat.hexColor} />
+                </div>
+              );
+            })}
           </div>
-
         </div>
       )}
     </div>
@@ -1475,9 +1566,11 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
 
   return (
     <div className="p-5 h-full overflow-y-auto pb-32 animate-in fade-in duration-300">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex items-center gap-2 mb-6">
+        <button onClick={() => setActiveTab('settings')} className="p-2 -ml-2 hover:bg-gray-100 rounded-xl text-gray-500 transition-colors">
+          <ChevronLeft size={20} />
+        </button>
         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <CalendarCheck className="text-teal-600" />
           毎月の固定費
         </h2>
       </div>
@@ -1592,7 +1685,7 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
   );
 };
 
-const SettingsView = ({ settings, settingsDocRef, showToast }) => {
+const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab }) => {
   const [method, setMethod] = useState(settings.splitMethod || 'ratio');
   const [ratio, setRatio] = useState(settings.user1Ratio ?? 50);
   const [fixedPayer, setFixedPayer] = useState(settings.fixedPayer || 'user1');
@@ -1691,6 +1784,23 @@ const SettingsView = ({ settings, settingsDocRef, showToast }) => {
         <Settings className="text-teal-600" />
         各種設定
       </h2>
+
+      {/* 💡 固定費へのアクセスボタン */}
+      <button 
+        onClick={() => setActiveTab('fixed')}
+        className="w-full bg-indigo-50 border border-indigo-100 p-4 rounded-3xl mb-6 flex items-center justify-between hover:bg-indigo-100 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-600 text-white rounded-full">
+            <CalendarCheck size={20} />
+          </div>
+          <div className="text-left">
+            <p className="font-bold text-indigo-900 text-sm">毎月の固定費を設定</p>
+            <p className="text-[10px] text-indigo-600 mt-0.5">家賃やサブスクの自動入力を管理</p>
+          </div>
+        </div>
+        <ChevronRightIcon size={20} className="text-indigo-400" />
+      </button>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
         <h3 className="font-bold text-gray-700 mb-4 text-sm">目標予算</h3>
@@ -1994,14 +2104,11 @@ export default function App() {
     return [...DEFAULT_CATEGORIES, ...(settings.customCategories || [])];
   }, [settings.customCategories]);
 
-  // 💡 追加：全期間の取引から「user1の」借金残高を計算する
   const u1NetDebt = useMemo(() => {
     let debt = 0;
     transactions.forEach(t => {
       if (t.hasDebt && t.debtAmount) {
-        // user1が払った場合：借金が減る（相手の借金が増える）
         if (t.paidBy === 'user1') debt -= t.debtAmount;
-        // user2が払った場合：借金が増える（相手の借金が減る）
         else debt += t.debtAmount;
       }
     });
@@ -2104,7 +2211,6 @@ export default function App() {
     let customU2TargetSum = 0;
 
     currentMonthTransactions.forEach(t => {
-      // 💡 共同生活費に計上する金額（借金・肩代わり分は除く）
       let effectiveAmount = t.amount;
       if (t.hasDebt && t.debtAmount) {
         effectiveAmount = Math.max(0, t.amount - t.debtAmount);
@@ -2213,8 +2319,9 @@ export default function App() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden font-sans text-gray-800 flex flex-col">
-      <header className="bg-white/80 backdrop-blur-md pt-12 pb-4 px-5 sticky top-0 z-10 border-b border-gray-100 flex justify-between items-center">
+    // 💡 画面全体をh-[100dvh]に固定し、メニューを常に最下部に保つ
+    <div className="max-w-md mx-auto bg-gray-50 h-[100dvh] relative shadow-2xl overflow-hidden font-sans text-gray-800 flex flex-col">
+      <header className="bg-white/80 backdrop-blur-md pt-12 pb-4 px-5 sticky top-0 z-10 border-b border-gray-100 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-teal-500 rounded-xl flex items-center justify-center text-white font-bold shadow-sm shadow-teal-200">
             <Leaf size={20} strokeWidth={2.5} />
@@ -2237,7 +2344,7 @@ export default function App() {
             settings={settings}
             setActiveTab={setActiveTab}
             setSearchCategory={setSearchCategory}
-            u1NetDebt={u1NetDebt} // 💡 propsとして追加
+            u1NetDebt={u1NetDebt}
           />
         )}
         {activeTab === 'add' && (
@@ -2307,6 +2414,16 @@ export default function App() {
             setSearchCategory={setSearchCategory}
           />
         )}
+        {/* 💡 追加: レポート画面 */}
+        {activeTab === 'report' && (
+          <ReportView 
+            transactions={transactions}
+            selectedMonth={selectedMonth}
+            setSelectedMonth={setSelectedMonth}
+            settings={settings}
+            categories={categories}
+          />
+        )}
         {activeTab === 'fixed' && (
           <FixedExpensesView 
             fixedExpenses={fixedExpenses}
@@ -2329,6 +2446,7 @@ export default function App() {
             settings={settings}
             settingsDocRef={settingsDocRef}
             showToast={showToast}
+            setActiveTab={setActiveTab} // 💡 追記
           />
         )}
       </main>
@@ -2340,8 +2458,9 @@ export default function App() {
         </div>
       )}
 
+      {/* 💡 navにshrink-0を追加してスクロールに巻き込まれないようにする */}
       <nav 
-        className="bg-white border-t border-gray-100 absolute bottom-0 w-full z-20"
+        className="bg-white border-t border-gray-100 w-full z-20 shrink-0"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
       >
         <div className="flex justify-around items-center h-20 px-1 pb-2">
@@ -2379,14 +2498,15 @@ export default function App() {
             </div>
           </button>
 
+          {/* 💡 変更：固定費 → レポート */}
           <button 
-            onClick={() => setActiveTab('fixed')}
-            className={`flex flex-col items-center gap-1 w-12 ${activeTab === 'fixed' ? 'text-teal-600' : 'text-gray-400 hover:text-gray-500'}`}
+            onClick={() => setActiveTab('report')}
+            className={`flex flex-col items-center gap-1 w-12 ${activeTab === 'report' ? 'text-teal-600' : 'text-gray-400 hover:text-gray-500'}`}
           >
-            <div className={`p-1.5 rounded-full transition-all duration-300 ${activeTab === 'fixed' ? 'bg-teal-50 scale-110' : ''}`}>
-              <CalendarCheck size={22} strokeWidth={activeTab === 'fixed' ? 2.5 : 2} />
+            <div className={`p-1.5 rounded-full transition-all duration-300 ${activeTab === 'report' ? 'bg-teal-50 scale-110' : ''}`}>
+              <BarChart3 size={22} strokeWidth={activeTab === 'report' ? 2.5 : 2} />
             </div>
-            <span className="text-[9px] font-bold">固定費</span>
+            <span className="text-[9px] font-bold">レポート</span>
           </button>
 
           <button 
