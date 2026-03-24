@@ -50,7 +50,8 @@ import {
   TrendingDown,
   ChevronRight as ChevronRightIcon,
   User,
-  Settings2
+  Settings2,
+  Clock
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -296,7 +297,7 @@ const LineChart = ({ data, labels, color }) => {
   );
 };
 
-const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt }) => {
+const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt, recentTransactions }) => {
   let cumulativePercent = 0;
   const gradientStops = stats.categoryTotals.length > 0 
     ? stats.categoryTotals.map(c => {
@@ -372,7 +373,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
           </div>
         </div>
 
-        {/* 💡 負担目安を上下に配置し、金額を見切れなく表示する */}
         <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-2 border border-gray-100">
           <div className="flex justify-center mb-1">
             <span className="bg-white px-3 py-1 rounded-lg shadow-sm border border-gray-200 text-[10px] font-bold text-gray-500">
@@ -493,6 +493,51 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
       )}
 
+      {/* 💡 追加：最近の記録セクション */}
+      {recentTransactions.length > 0 && (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+              <Clock size={16} className="text-teal-600" />
+              最近の記録
+            </h3>
+            <button 
+              onClick={() => setActiveTab('history')}
+              className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2.5 py-1.5 rounded-lg hover:bg-teal-100 transition-colors"
+            >
+              すべて見る
+            </button>
+          </div>
+          <div className="space-y-3">
+            {recentTransactions.map(t => {
+              const cat = categories.find(c => c.id === t.categoryId) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
+              const user = users[t.paidBy];
+              const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
+              
+              return (
+                <div key={t.id} className="flex justify-between items-center border-b border-gray-50 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-full flex-shrink-0 ${cat.color}`}>
+                      <Icon size={14} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-bold text-gray-700 text-xs truncate">{t.memo || cat.name}</span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[10px] text-gray-400 font-medium">{t.date.replace(/-/g, '/')}</span>
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded-sm font-bold ${user?.lightColor || 'bg-gray-100'}`}>
+                          {user?.name || '不明'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="font-bold text-gray-800 text-sm ml-2 flex-shrink-0">¥{t.amount.toLocaleString()}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {u1NetDebt !== 0 && (
         <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between mt-6">
           <div>
@@ -512,7 +557,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
       )}
 
-      {stats.total === 0 && u1NetDebt === 0 && (
+      {stats.total === 0 && u1NetDebt === 0 && recentTransactions.length === 0 && (
         <div className="text-center py-10 bg-white rounded-3xl border border-gray-100 border-dashed">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
             <Wallet className="text-gray-300" size={32} />
@@ -675,7 +720,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           }
           setSelectedMonth(targetMonth);
           
-          // 💡 カレンダー（または元の画面）に戻るように改善
           setActiveTab(previousTab === 'history' || selectedDateForNewTx ? 'history' : 'home');
         }
       }
@@ -999,7 +1043,8 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   );
 };
 
-const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, selectedCalDate, setSelectedCalDate, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory, historyTab, setHistoryTab }) => {
+const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory, historyTab, setHistoryTab }) => {
+  const [selectedCalDate, setSelectedCalDate] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const memoSuggestions = useMemo(() => {
@@ -1089,12 +1134,14 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
   const handleCopy = (tx) => {
     setCopyTemplate(tx);
     setEditingTx(null);
+    setSelectedDateForNewTx(null);
     setActiveTab('add');
   };
 
   const handleEdit = (tx) => {
     setEditingTx(tx);
     setCopyTemplate(null);
+    setSelectedDateForNewTx(null);
     setActiveTab('edit');
   };
 
@@ -1306,7 +1353,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                 <div key={d} className={`text-[10px] font-bold py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}>{d}</div>
               ))}
               
-              {/* 💡 カレンダーのマス目を少し高くし、金額がすべて見えるように修正 */}
               {calendarDays.map((dateStr, i) => {
                 if (!dateStr) return <div key={`empty-${i}`} className="p-1"></div>;
                 
@@ -1345,6 +1391,18 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                   <CalendarCheck size={16} className="text-teal-600" />
                   {selectedCalDate.replace(/-/g, '/')} の詳細
                 </h3>
+                <button
+                  onClick={() => {
+                    setCopyTemplate(null);
+                    setEditingTx(null);
+                    setSelectedDateForNewTx(selectedCalDate);
+                    setActiveTab('add');
+                  }}
+                  className="text-[10px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition-colors flex items-center gap-1"
+                >
+                  <Plus size={14} strokeWidth={2.5} />
+                  この日に記録
+                </button>
               </div>
               {dailyData[selectedCalDate] ? (
                 <div className="space-y-3">
@@ -2240,9 +2298,7 @@ export default function App() {
   const [loginError, setLoginError] = useState(false);
 
   const [activeTab, setActiveTab] = useState('home');
-  const [previousTab, setPreviousTab] = useState('home'); // 💡 追加：直前にいたタブを記憶する
-  
-  // 💡 履歴のデフォルトを「カレンダー」に変更
+  const [previousTab, setPreviousTab] = useState('home');
   const [historyTab, setHistoryTab] = useState('calendar');
   
   const [transactions, setTransactions] = useState([]);
@@ -2267,7 +2323,6 @@ export default function App() {
     return localStorage.getItem('shareloo_currentUserType') || 'user1';
   });
 
-  // 💡 Appレベルでカレンダーの選択状態を保持する
   const [selectedCalDate, setSelectedCalDate] = useState(null);
   const [selectedDateForNewTx, setSelectedDateForNewTx] = useState(null);
 
@@ -2285,6 +2340,11 @@ export default function App() {
     return [...DEFAULT_CATEGORIES, ...(settings.customCategories || [])];
   }, [settings.customCategories]);
 
+  // 💡 最近の記録（最新3件）を取得
+  const recentTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 3);
+  }, [transactions]);
+
   const u1NetDebt = useMemo(() => {
     let debt = settings.initialDebt || 0; 
     transactions.forEach(t => {
@@ -2296,7 +2356,6 @@ export default function App() {
     return debt;
   }, [transactions, settings.initialDebt]);
 
-  // 💡 タブ切り替え用の関数
   const handleTabChange = (tabName) => {
     if (activeTab !== tabName && activeTab !== 'add' && activeTab !== 'edit') {
       setPreviousTab(activeTab);
@@ -2310,7 +2369,12 @@ export default function App() {
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
+          try {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } catch (e) {
+            console.error("Custom token invalid, fallback to anonymous:", e);
+            await signInAnonymously(auth);
+          }
         } else {
           await signInAnonymously(auth);
         }
@@ -2534,6 +2598,7 @@ export default function App() {
             setActiveTab={handleTabChange}
             setSearchCategory={setSearchCategory}
             u1NetDebt={u1NetDebt}
+            recentTransactions={recentTransactions} 
           />
         )}
         {activeTab === 'add' && (
@@ -2555,7 +2620,7 @@ export default function App() {
             showToast={showToast}
             transactions={transactions}
             currentUserType={currentUserType} 
-            previousTab={previousTab} // 💡 追記
+            previousTab={previousTab} 
           />
         )}
         {activeTab === 'edit' && (
@@ -2577,7 +2642,7 @@ export default function App() {
             showToast={showToast}
             transactions={transactions}
             currentUserType={currentUserType} 
-            previousTab={previousTab} // 💡 追記
+            previousTab={previousTab} 
           />
         )}
         {activeTab === 'history' && (
@@ -2607,8 +2672,8 @@ export default function App() {
             setSearchCategory={setSearchCategory}
             historyTab={historyTab} 
             setHistoryTab={setHistoryTab} 
-            selectedCalDate={selectedCalDate} // 💡 追記
-            setSelectedCalDate={setSelectedCalDate} // 💡 追記
+            selectedCalDate={selectedCalDate} 
+            setSelectedCalDate={setSelectedCalDate} 
           />
         )}
         {activeTab === 'report' && (
@@ -2681,7 +2746,6 @@ export default function App() {
             onClick={() => {
               setEditingTx(null);
               setCopyTemplate(null);
-              // 💡 追加: カレンダー画面で日付が選択されていればその日付を使う
               setSelectedDateForNewTx(activeTab === 'history' && historyTab === 'calendar' && selectedCalDate ? selectedCalDate : null);
               handleTabChange('add');
             }}
