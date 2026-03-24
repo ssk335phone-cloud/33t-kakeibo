@@ -53,7 +53,9 @@ import {
   Settings2,
   Clock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Download,
+  AlertCircle
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -112,21 +114,6 @@ const COLOR_PRESETS = [
   { color: 'bg-teal-100 text-teal-600', hexColor: '#0d9488' },
   { color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
   { color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
-];
-
-const DEFAULT_CATEGORIES = [
-  { id: 'food', name: '食費', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
-  { id: 'eatout', name: '外食費', iconName: 'Coffee', color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
-  { id: 'daily', name: '日用品', iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
-  { id: 'rent', name: '住居費', iconName: 'HomeIcon', color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
-  { id: 'utility', name: '電気・ガス', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
-  { id: 'water', name: '水道代', iconName: 'Droplets', color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
-  { id: 'telecom', name: '通信費', iconName: 'Smartphone', color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
-  { id: 'dog', name: 'お犬', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
-  { id: 'event', name: 'イベント', iconName: 'PartyPopper', color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
-  { id: 'leisure', name: 'レジャー費', iconName: 'Smile', color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
-  { id: 'transport', name: '交通・車両費', iconName: 'Train', color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
-  { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
 const getTodayStr = () => {
@@ -210,7 +197,6 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
   );
 };
 
-// 💡 折れ線グラフを描画するためのSVGコンポーネント
 const LineChart = ({ data, labels, color }) => {
   const [selectedIndex, setSelectedIndex] = useState(() => {
     for (let i = data.length - 1; i >= 0; i--) {
@@ -328,7 +314,7 @@ const LineChart = ({ data, labels, color }) => {
   );
 };
 
-const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt, recentTransactions }) => {
+const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt, recentTransactions, unrecordedFixedExpenses, handleRegisterMonthly, isSavingFixed }) => {
   let cumulativePercent = 0;
   const gradientStops = stats.categoryTotals.length > 0 
     ? stats.categoryTotals.map(c => {
@@ -343,6 +329,24 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
 
   const finalDiff = stats.u1Diff - u1NetDebt;
 
+  const todayStr = getTodayStr();
+  const isCurrentMonth = todayStr >= startDate && todayStr <= endDate;
+  
+  let dailyAvailable = null;
+  let remainingDays = 0;
+  if (settings.monthlyBudget > 0 && isCurrentMonth) {
+    const todayDate = new Date(`${todayStr}T00:00:00`);
+    const endDateObj = new Date(`${endDate}T00:00:00`);
+    const diffTime = endDateObj.getTime() - todayDate.getTime();
+    remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (remainingDays >= 0) {
+      const daysToDivide = remainingDays + 1; 
+      const remainingAmount = Math.max(0, settings.monthlyBudget - stats.total);
+      dailyAvailable = Math.floor(remainingAmount / daysToDivide);
+    }
+  }
+
   return (
     <div className="p-5 pb-24 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <MonthSelector 
@@ -352,6 +356,29 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         onNext={handleNextMonth} 
         dateRangeText={dateRangeText}
       />
+
+      {/* 💡 追加：未登録の固定費がある場合のアラートバナー */}
+      {unrecordedFixedExpenses.length > 0 && (
+        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-3xl animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="text-indigo-500 flex-shrink-0 mt-0.5" size={20} />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-indigo-900 mb-1">今月の固定費が未登録です</p>
+              <p className="text-xs text-indigo-700 mb-3">
+                {unrecordedFixedExpenses.length}件の固定費 (合計 ¥{unrecordedFixedExpenses.reduce((a,b)=>a+b.amount,0).toLocaleString()}) がまだ追加されていません。
+              </p>
+              <button 
+                onClick={handleRegisterMonthly}
+                disabled={isSavingFixed}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all text-xs disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <CalendarCheck size={14} />
+                {isSavingFixed ? '登録中...' : '今月分を一括登録する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-gray-500 text-sm font-medium mb-1">今月の共同生活費</h2>
@@ -373,6 +400,18 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
                 style={{ width: `${Math.min((stats.total / settings.monthlyBudget) * 100, 100)}%` }}
               />
             </div>
+            {dailyAvailable !== null && (
+              <div className="mt-4 bg-teal-50/50 rounded-xl p-3 flex items-center justify-between border border-teal-100">
+                <div className="flex items-center gap-1.5 text-teal-700">
+                  <CalendarCheck size={14} />
+                  <span className="text-xs font-bold">今月残り {remainingDays + 1}日</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-gray-500 font-bold mr-1.5">1日あたり使える目安</span>
+                  <span className="text-sm font-black text-teal-600">¥{dailyAvailable.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -634,6 +673,24 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     return transactions.filter(t => t.date === date).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [transactions, date]);
 
+  const quickTemplates = useMemo(() => {
+    if (!transactions) return [];
+    const unique = [];
+    const seen = new Set();
+    const sorted = [...transactions].sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+    
+    for (const t of sorted) {
+      if (!t.memo) continue; 
+      const key = `${t.categoryId}-${t.memo}-${t.amount}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(t);
+        if (unique.length >= 4) break; 
+      }
+    }
+    return unique;
+  }, [transactions]);
+
   useEffect(() => {
     if (isEdit && txToEdit) {
       setDate(txToEdit.date);
@@ -787,6 +844,34 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
 
       <div className="space-y-5">
         
+        {quickTemplates.length > 0 && !isEdit && (
+          <div className="mb-2">
+            <p className="text-[10px] font-bold text-gray-400 mb-2 flex items-center gap-1">
+              <Zap size={12} className="text-yellow-500" /> 履歴からサクッと入力
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {quickTemplates.map((t, idx) => {
+                const cat = categories.find(c => c.id === t.categoryId) || categories[0];
+                return (
+                  <button 
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setAmount(t.amount.toString());
+                      setCategoryId(t.categoryId);
+                      setMemo(t.memo);
+                    }}
+                    className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-2 rounded-full shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
+                  >
+                     <span className="text-[10px] text-gray-600 font-bold truncate max-w-[80px]">{t.memo}</span>
+                     <span className="text-[10px] text-teal-600 font-black">¥{t.amount.toLocaleString()}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs font-bold text-gray-500 mb-1">金額</label>
           <div className="relative">
@@ -800,6 +885,26 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               placeholder="0"
               className="w-full pl-10 pr-4 py-4 text-right text-2xl sm:text-3xl font-bold bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-sm"
             />
+          </div>
+          {/* 💡 追加：クイック加算ボタン */}
+          <div className="flex gap-2 mt-2">
+            {[1000, 500, 100].map(val => (
+              <button 
+                key={val}
+                type="button"
+                onClick={() => setAmount((prev) => ((Number(prev) || 0) + val).toString())}
+                className="flex-1 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm"
+              >
+                +¥{val}
+              </button>
+            ))}
+            <button 
+              type="button"
+              onClick={() => setAmount('')}
+              className="flex-1 py-1.5 bg-rose-50 border border-rose-100 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-100 active:bg-rose-200 transition-colors shadow-sm"
+            >
+              クリア
+            </button>
           </div>
         </div>
 
@@ -1147,8 +1252,8 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     }
   }, [currentMonthTransactions, historySortMode, categories, searchQuery, searchCategory]);
 
-  const { calendarDays, dailyData } = useMemo(() => {
-    if (!startDate || !endDate) return { calendarDays: [], dailyData: {} };
+  const { calendarDays, dailyData, maxDailyAmount } = useMemo(() => {
+    if (!startDate || !endDate) return { calendarDays: [], dailyData: {}, maxDailyAmount: 0 };
 
     const [sy, sm, sd] = startDate.split('-');
     const start = new Date(sy, sm - 1, sd);
@@ -1173,13 +1278,18 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     }
     
     const dData = {};
+    let maxAmt = 0;
     currentMonthTransactions.forEach(t => {
       if (!dData[t.date]) dData[t.date] = { total: 0, items: [] };
       dData[t.date].total += t.amount; 
       dData[t.date].items.push(t);
     });
 
-    return { calendarDays: days, dailyData: dData };
+    Object.values(dData).forEach(d => {
+      if (d.total > maxAmt) maxAmt = d.total;
+    });
+
+    return { calendarDays: days, dailyData: dData, maxDailyAmount: maxAmt };
   }, [startDate, endDate, currentMonthTransactions]);
 
   const handleCopy = (tx) => {
@@ -1415,17 +1525,28 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                 const hasData = dailyData[dateStr];
                 const isSelected = selectedCalDate === dateStr;
                 const isToday = dateStr === getTodayStr();
+
+                // 💡 追加：ヒートマップ用の色計算
+                let bgClass = 'bg-gray-50 hover:bg-gray-100';
+                if (hasData && maxDailyAmount > 0) {
+                  const ratio = hasData.total / maxDailyAmount;
+                  if (ratio > 0.6) bgClass = 'bg-teal-300 border-teal-300 hover:bg-teal-400';
+                  else if (ratio > 0.3) bgClass = 'bg-teal-200 border-teal-200 hover:bg-teal-300';
+                  else bgClass = 'bg-teal-100 border-teal-100 hover:bg-teal-200';
+                }
+                if (isSelected) bgClass = 'bg-teal-500 text-white shadow-md border-teal-500';
+                if (isToday && !isSelected && !hasData) bgClass = 'bg-white border-gray-200';
                 
                 return (
                   <div 
                     key={dateStr}
                     onClick={() => setSelectedCalDate(isSelected ? null : dateStr)}
-                    className={`flex flex-col items-center justify-start p-0.5 sm:p-1 h-16 sm:h-20 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-teal-500 bg-teal-50 shadow-sm scale-105 z-10' : 'border-transparent bg-gray-50 hover:bg-gray-100'} ${isToday && !isSelected ? 'border-gray-200 bg-white' : ''}`}
+                    className={`flex flex-col items-center justify-start p-0.5 sm:p-1 h-16 sm:h-20 rounded-xl border-2 cursor-pointer transition-all ${bgClass} ${isSelected ? 'scale-105 z-10' : 'border-transparent'}`}
                   >
-                    <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{dDisplay}</span>
+                    <span className={`text-[10px] font-bold ${isSelected ? 'text-white' : isToday && !hasData ? 'text-gray-800' : hasData ? 'text-teal-900' : 'text-gray-500'}`}>{dDisplay}</span>
                     {hasData && (
                       <span 
-                        className="text-[8px] sm:text-[9px] text-teal-600 font-bold mt-auto w-full leading-none px-0.5 text-center break-all tracking-tighter"
+                        className={`text-[8px] sm:text-[9px] font-bold mt-auto w-full leading-none px-0.5 text-center break-all tracking-tighter ${isSelected ? 'text-teal-100' : 'text-teal-800'}`}
                       >
                         ¥{hasData.total.toLocaleString()}
                       </span>
@@ -1914,7 +2035,7 @@ const FixedExpensesView = ({ fixedExpenses, categories, users, settings, txColle
   );
 };
 
-const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, currentUserType, setCurrentUserType }) => {
+const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, currentUserType, setCurrentUserType, transactions, categories, users }) => {
   const [method, setMethod] = useState(settings.splitMethod || 'ratio');
   const [ratio, setRatio] = useState(settings.user1Ratio ?? 50);
   const [fixedPayer, setFixedPayer] = useState(settings.fixedPayer || 'user1');
@@ -2013,6 +2134,54 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
     }
   };
 
+  const handleExportCSV = () => {
+    if (!transactions || transactions.length === 0) {
+      showToast('エクスポートするデータがありません');
+      return;
+    }
+    
+    const sortedTx = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const header = ["日付", "金額", "支払った人", "ジャンル", "メモ", "特殊割り勘", "立替・精算", "登録日時"];
+    
+    const escapeCsv = (str) => `"${String(str || "").replace(/"/g, '""')}"`;
+    
+    const rows = sortedTx.map(t => {
+      const cat = categories.find(c => c.id === t.categoryId)?.name || t.categoryId;
+      const payer = users[t.paidBy]?.name || t.paidBy;
+      let customSplit = "なし";
+      if (t.isCustomSplit) {
+        customSplit = t.customSplitMode === 'ratio' ? `割合指定(${t.customUser1Ratio}%)` : `金額指定(${t.customUser1Amount}円)`;
+      }
+      let debtInfo = "なし";
+      if (t.hasDebt) {
+        debtInfo = `${t.debtType === 'borrow' ? '立替' : '精算'}(${t.debtAmount}円)`;
+      }
+      const createdAt = t.createdAt ? new Date(t.createdAt).toLocaleString() : "";
+      
+      return [
+        escapeCsv(t.date), 
+        t.amount, 
+        escapeCsv(payer), 
+        escapeCsv(cat), 
+        escapeCsv(t.memo), 
+        escapeCsv(customSplit),
+        escapeCsv(debtInfo),
+        escapeCsv(createdAt)
+      ].join(",");
+    });
+    
+    const csvContent = [header.join(","), ...rows].join("\n");
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `ささっと家計簿_データ_${getTodayStr()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('データをCSVでダウンロードしました');
+  };
+
   return (
     <div className="p-5 h-full overflow-y-auto pb-24 animate-in fade-in duration-300">
       <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -2020,6 +2189,7 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         各種設定
       </h2>
 
+      {/* 👤 基本設定セクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">基本設定</h3>
       
       <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
@@ -2067,6 +2237,7 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         </div>
       </div>
 
+      {/* 💰 ルール設定セクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">お金のルール</h3>
 
       <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
@@ -2217,6 +2388,7 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         </div>
       </div>
 
+      {/* 🛠 カスタマイズセクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">カスタマイズ</h3>
 
       <button 
@@ -2329,10 +2501,22 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         )}
       </div>
 
+      <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">データ管理</h3>
+      
+      <button 
+        onClick={handleExportCSV}
+        className="w-full bg-white border border-gray-200 p-4 rounded-3xl mb-8 flex items-center justify-between hover:bg-gray-50 transition-colors shadow-sm"
+      >
+        <div className="flex items-center gap-3 text-gray-600">
+          <Download size={20} />
+          <span className="font-bold text-sm">データをダウンロード (CSV)</span>
+        </div>
+      </button>
+
       <button 
         onClick={handleSaveGeneral}
         disabled={isSaving}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50 mt-8 mb-4"
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-200 transition-all active:scale-[0.98] disabled:opacity-50 mt-4 mb-4"
       >
         {isSaving ? '保存中...' : 'すべての設定を保存する'}
       </button>
@@ -2380,6 +2564,8 @@ export default function App() {
   const [copyTemplate, setCopyTemplate] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
   const [user, setUser] = useState(null);
+
+  const [isSavingFixed, setIsSavingFixed] = useState(false);
 
   const users = useMemo(() => ({
     user1: { id: 'user1', name: settings.user1Name || 'あなた', color: 'bg-teal-500', lightColor: 'bg-teal-100 text-teal-700' },
@@ -2584,6 +2770,49 @@ export default function App() {
     setSelectedMonth(d.toISOString().slice(0, 7));
   };
 
+  // 💡 追加：未登録の固定費を判定する
+  const unrecordedFixedExpenses = useMemo(() => {
+    const todayStr = getTodayStr();
+    const isCurrentMonth = todayStr >= startDate && todayStr <= endDate;
+    if (!isCurrentMonth) return []; 
+    if (!fixedExpenses || fixedExpenses.length === 0) return [];
+    
+    return fixedExpenses.filter(expense => {
+      const isAlreadyRegistered = currentMonthTransactions.some(tx => 
+        tx.memo === expense.memo && 
+        tx.amount === expense.amount && 
+        tx.categoryId === expense.categoryId
+      );
+      return !isAlreadyRegistered;
+    });
+  }, [fixedExpenses, currentMonthTransactions, startDate, endDate]);
+
+  const handleRegisterMonthly = async () => {
+    if (unrecordedFixedExpenses.length === 0) return;
+    setIsSavingFixed(true);
+    const { endDate } = getMonthDateRange(selectedMonth, settings.closingDate);
+
+    try {
+      const promises = unrecordedFixedExpenses.map(expense => 
+        addDoc(txCollection, {
+          date: endDate,
+          amount: expense.amount,
+          paidBy: expense.paidBy,
+          categoryId: expense.categoryId,
+          memo: expense.memo,
+          createdAt: Date.now()
+        })
+      );
+      await Promise.all(promises);
+      showToast(`今月の固定費（${unrecordedFixedExpenses.length}件）を登録しました！`);
+    } catch (e) {
+      console.error(e);
+      showToast('エラーが発生しました');
+    } finally {
+      setIsSavingFixed(false);
+    }
+  };
+
   if (!isPassphraseValid) {
     return (
       <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden font-sans text-gray-800 flex items-center justify-center p-5">
@@ -2640,6 +2869,8 @@ export default function App() {
             handlePrevMonth={handlePrevMonth}
             handleNextMonth={handleNextMonth}
             dateRangeText={dateRangeText}
+            startDate={startDate}
+            endDate={endDate}
             stats={stats}
             users={users}
             categories={categories}
@@ -2648,6 +2879,9 @@ export default function App() {
             setSearchCategory={setSearchCategory}
             u1NetDebt={u1NetDebt}
             recentTransactions={recentTransactions} 
+            unrecordedFixedExpenses={unrecordedFixedExpenses} // 💡 追記
+            handleRegisterMonthly={handleRegisterMonthly} // 💡 追記
+            isSavingFixed={isSavingFixed} // 💡 追記
           />
         )}
         {activeTab === 'add' && (
@@ -2759,14 +2993,17 @@ export default function App() {
             setActiveTab={handleTabChange}
             currentUserType={currentUserType} 
             setCurrentUserType={setCurrentUserType} 
+            transactions={transactions}
+            categories={categories}
+            users={users}
           />
         )}
       </main>
 
       {toastMessage && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium z-50 animate-in fade-in slide-in-from-top-4 flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-          {toastMessage}
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium z-50 animate-in fade-in slide-in-from-top-4 flex items-center gap-2 w-max max-w-[90%] whitespace-nowrap">
+          <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
+          <span className="truncate">{toastMessage}</span>
         </div>
       )}
 
