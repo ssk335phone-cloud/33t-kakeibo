@@ -51,7 +51,9 @@ import {
   ChevronRight as ChevronRightIcon,
   User,
   Settings2,
-  Clock
+  Clock,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -208,6 +210,7 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
   );
 };
 
+// 💡 折れ線グラフを描画するためのSVGコンポーネント
 const LineChart = ({ data, labels, color }) => {
   const [selectedIndex, setSelectedIndex] = useState(() => {
     for (let i = data.length - 1; i >= 0; i--) {
@@ -225,13 +228,41 @@ const LineChart = ({ data, labels, color }) => {
     return `${x},${y}`;
   }).join(' ');
 
+  const getPopupPosition = () => {
+    if (selectedIndex === null) return {};
+    const xPercent = (selectedIndex / (Math.max(data.length - 1, 1))) * 100;
+    const isFirst = selectedIndex === 0;
+    const isLast = selectedIndex === data.length - 1;
+    
+    return {
+      containerStyle: {
+        left: isFirst ? '0%' : isLast ? 'auto' : `${xPercent}%`,
+        right: isLast ? '0%' : 'auto',
+        transform: isFirst || isLast ? 'none' : 'translateX(-50%)'
+      },
+      arrowStyle: {
+        left: isFirst ? '12px' : isLast ? 'auto' : '50%',
+        right: isLast ? '12px' : 'auto',
+        transform: isFirst || isLast ? 'none' : 'translateX(-50%)'
+      }
+    };
+  };
+
+  const popupPos = getPopupPosition();
+
   return (
     <div className="w-full mt-6 relative">
       {selectedIndex !== null && data[selectedIndex] !== undefined && (
-        <div className="absolute -top-10 left-0 right-0 flex justify-center pointer-events-none z-10 animate-in fade-in zoom-in duration-200">
-           <div className="bg-gray-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-md relative">
+        <div 
+          className="absolute -top-10 z-10 animate-in fade-in zoom-in duration-200"
+          style={popupPos.containerStyle}
+        >
+           <div className="bg-gray-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-md whitespace-nowrap relative">
              {labels[selectedIndex]}: ¥{data[selectedIndex].toLocaleString()}
-             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+             <div 
+               className="absolute -bottom-1 w-2 h-2 bg-gray-800 rotate-45"
+               style={popupPos.arrowStyle}
+             ></div>
            </div>
         </div>
       )}
@@ -324,7 +355,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-gray-500 text-sm font-medium mb-1">今月の共同生活費</h2>
-        <div className="text-4xl font-bold text-gray-800 mb-4 break-words">
+        <div className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 break-words">
           ¥{stats.total.toLocaleString()}
         </div>
 
@@ -380,18 +411,18 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
             </span>
           </div>
           <div className="flex justify-between items-center text-sm">
-            <div className="flex items-center gap-1.5 text-gray-600 font-medium">
-              <div className={`w-2 h-2 rounded-full ${users.user1.color}`}></div>
+            <div className="flex items-center gap-1.5 text-gray-600 font-medium min-w-0">
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${users.user1.color}`}></div>
               <span className="truncate">{users.user1.name} 負担目安</span>
             </div>
-            <span className="font-bold text-gray-800">¥{stats.u1Target.toLocaleString()}</span>
+            <span className="font-bold text-gray-800 flex-shrink-0 ml-2 break-words">¥{stats.u1Target.toLocaleString()}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
-            <div className="flex items-center gap-1.5 text-gray-600 font-medium">
-              <div className={`w-2 h-2 rounded-full ${users.user2.color}`}></div>
+            <div className="flex items-center gap-1.5 text-gray-600 font-medium min-w-0">
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${users.user2.color}`}></div>
               <span className="truncate">{users.user2.name} 負担目安</span>
             </div>
-            <span className="font-bold text-gray-800">¥{stats.u2Target.toLocaleString()}</span>
+            <span className="font-bold text-gray-800 flex-shrink-0 ml-2 break-words">¥{stats.u2Target.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -401,16 +432,16 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
           <div className="p-3 bg-white rounded-full text-teal-600 shadow-sm flex-shrink-0">
             <ArrowRightLeft size={24} />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-teal-600 font-medium mb-1">今月の精算状況</p>
             {stats.total === 0 ? (
               <p className="font-bold text-gray-800">支出はありません</p>
             ) : stats.u1Diff > 0 ? (
-              <p className="font-bold text-gray-800 text-sm break-words">
+              <p className="font-bold text-gray-800 text-sm break-words leading-tight">
                 {users.user2.name}から <span className="text-teal-600 text-lg">¥{Math.abs(stats.u1Diff).toLocaleString()}</span> もらう
               </p>
             ) : stats.u1Diff < 0 ? (
-              <p className="font-bold text-gray-800 text-sm break-words">
+              <p className="font-bold text-gray-800 text-sm break-words leading-tight">
                 {users.user2.name}へ <span className="text-rose-500 text-lg">¥{Math.abs(stats.u1Diff).toLocaleString()}</span> 渡す
               </p>
             ) : (
@@ -425,11 +456,11 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
               💡 立替分と相殺した最終的な精算額
             </p>
             {finalDiff > 0 ? (
-              <p className="font-bold text-gray-800 text-sm break-words">
+              <p className="font-bold text-gray-800 text-sm break-words leading-tight">
                 最終的に <span className="text-teal-600 text-lg">¥{Math.abs(finalDiff).toLocaleString()}</span> もらう
               </p>
             ) : finalDiff < 0 ? (
-              <p className="font-bold text-gray-800 text-sm break-words">
+              <p className="font-bold text-gray-800 text-sm break-words leading-tight">
                 最終的に <span className="text-rose-500 text-lg">¥{Math.abs(finalDiff).toLocaleString()}</span> 渡す
               </p>
             ) : (
@@ -438,6 +469,50 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
           </div>
         )}
       </div>
+
+      {recentTransactions.length > 0 && (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+              <Clock size={16} className="text-teal-600" />
+              最近の記録
+            </h3>
+            <button 
+              onClick={() => setActiveTab('history')}
+              className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2.5 py-1.5 rounded-lg hover:bg-teal-100 transition-colors"
+            >
+              すべて見る
+            </button>
+          </div>
+          <div className="space-y-3">
+            {recentTransactions.map(t => {
+              const cat = categories.find(c => c.id === t.categoryId) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
+              const user = users[t.paidBy];
+              const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
+              
+              return (
+                <div key={t.id} className="flex justify-between items-center border-b border-gray-50 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-full flex-shrink-0 ${cat.color}`}>
+                      <Icon size={14} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-bold text-gray-700 text-xs truncate">{t.memo || cat.name}</span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[10px] text-gray-400 font-medium">{t.date.replace(/-/g, '/')}</span>
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded-sm font-bold ${user?.lightColor || 'bg-gray-100'}`}>
+                          {user?.name || '不明'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="font-bold text-gray-800 text-sm ml-2 flex-shrink-0">¥{t.amount.toLocaleString()}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {stats.categoryTotals.length > 0 && (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -493,51 +568,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         </div>
       )}
 
-      {/* 💡 追加：最近の記録セクション */}
-      {recentTransactions.length > 0 && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-              <Clock size={16} className="text-teal-600" />
-              最近の記録
-            </h3>
-            <button 
-              onClick={() => setActiveTab('history')}
-              className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2.5 py-1.5 rounded-lg hover:bg-teal-100 transition-colors"
-            >
-              すべて見る
-            </button>
-          </div>
-          <div className="space-y-3">
-            {recentTransactions.map(t => {
-              const cat = categories.find(c => c.id === t.categoryId) || { name: '不明なジャンル', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-500', hexColor: '#9ca3af' };
-              const user = users[t.paidBy];
-              const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
-              
-              return (
-                <div key={t.id} className="flex justify-between items-center border-b border-gray-50 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`p-2 rounded-full flex-shrink-0 ${cat.color}`}>
-                      <Icon size={14} />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-bold text-gray-700 text-xs truncate">{t.memo || cat.name}</span>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[10px] text-gray-400 font-medium">{t.date.replace(/-/g, '/')}</span>
-                        <span className={`text-[8px] px-1.5 py-0.5 rounded-sm font-bold ${user?.lightColor || 'bg-gray-100'}`}>
-                          {user?.name || '不明'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <span className="font-bold text-gray-800 text-sm ml-2 flex-shrink-0">¥{t.amount.toLocaleString()}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {u1NetDebt !== 0 && (
         <div className="bg-orange-50 p-4 sm:p-5 rounded-3xl border border-orange-100 mb-6 flex items-center justify-between mt-6">
           <div>
@@ -545,12 +575,12 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
             {u1NetDebt > 0 ? (
               <p className="text-sm font-bold text-gray-800 leading-snug">
                 あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
+                <span className="text-xl sm:text-2xl break-words">¥{u1NetDebt.toLocaleString()}</span> 立て替えてもらっています
               </p>
             ) : (
               <p className="text-sm font-bold text-gray-800 leading-snug">
                 あなたは <span className="text-orange-600">{users.user2.name}</span> に <br/>
-                <span className="text-2xl">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
+                <span className="text-xl sm:text-2xl break-words">¥{Math.abs(u1NetDebt).toLocaleString()}</span> 立て替えています
               </p>
             )}
           </div>
@@ -582,6 +612,8 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const [memo, setMemo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const [isCustomSplit, setIsCustomSplit] = useState(false);
   const [customSplitMode, setCustomSplitMode] = useState('ratio');
   const [customUser1Ratio, setCustomUser1Ratio] = useState(settings.user1Ratio);
@@ -616,6 +648,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setHasDebt(!!txToEdit.hasDebt);
       setDebtType(txToEdit.debtType || 'borrow');
       setDebtAmount(txToEdit.debtAmount ? txToEdit.debtAmount.toString() : '');
+      if (txToEdit.isCustomSplit || txToEdit.hasDebt) setShowAdvanced(true);
     } else if (!isEdit && copyTemplate) {
       setDate(getTodayStr());
       setAmount(copyTemplate.amount.toString());
@@ -629,6 +662,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setHasDebt(!!copyTemplate.hasDebt);
       setDebtType(copyTemplate.debtType || 'borrow');
       setDebtAmount(copyTemplate.debtAmount ? copyTemplate.debtAmount.toString() : '');
+      if (copyTemplate.isCustomSplit || copyTemplate.hasDebt) setShowAdvanced(true);
     } else if (!isEdit && selectedDateForNewTx) {
       setDate(selectedDateForNewTx);
       setAmount('');
@@ -642,6 +676,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setHasDebt(false);
       setDebtType('borrow');
       setDebtAmount('');
+      setShowAdvanced(false);
     } else {
       setDate(getTodayStr());
       setAmount('');
@@ -655,6 +690,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setHasDebt(false);
       setDebtType('borrow');
       setDebtAmount('');
+      setShowAdvanced(false);
     }
   }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx, settings.user1Ratio, defaultCategoryId, currentUserType]);
 
@@ -704,6 +740,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           setCustomUser1Amount('');
           setHasDebt(false);
           setDebtAmount('');
+          setShowAdvanced(false);
           const mainArea = document.getElementById('main-scroll-area');
           if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
@@ -749,6 +786,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       </div>
 
       <div className="space-y-5">
+        
         <div>
           <label className="block text-xs font-bold text-gray-500 mb-1">金額</label>
           <div className="relative">
@@ -760,7 +798,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
-              className="w-full pl-10 pr-4 py-4 text-right text-3xl font-bold bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-sm"
+              className="w-full pl-10 pr-4 py-4 text-right text-2xl sm:text-3xl font-bold bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-sm"
             />
           </div>
         </div>
@@ -782,150 +820,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 transition-all shadow-sm">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-gray-700 flex items-center gap-2">
-              個人的な立替・精算を含める
-            </label>
-            <button
-              type="button"
-              onClick={() => setHasDebt(!hasDebt)}
-              className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${hasDebt ? 'bg-orange-500' : 'bg-gray-300'}`}
-            >
-              <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${hasDebt ? 'translate-x-7' : 'translate-x-1'}`} />
-            </button>
-          </div>
-          
-          {hasDebt && (
-            <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-orange-200 pt-4">
-              <div className="flex gap-2 mb-4 p-1 bg-orange-200/50 rounded-xl">
-                <button 
-                  type="button"
-                  onClick={() => setDebtType('borrow')}
-                  className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'borrow' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
-                >
-                  {paidBy === 'user1' ? `${users.user2.name}の分を立て替えた` : `${users.user1.name}の分を立て替えた`}
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setDebtType('repay')}
-                  className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'repay' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
-                >
-                  立て替えてもらっていた分を返す
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-orange-600 mb-1 text-center">立替・精算に充てる金額</label>
-                <div className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
-                  <input 
-                    type="number" 
-                    inputMode="numeric"
-                    pattern="\d*"
-                    value={debtAmount} 
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === '') { setDebtAmount(''); return; }
-                      const numVal = Number(val);
-                      const maxVal = Number(amount) || 0;
-                      if (numVal > maxVal) setDebtAmount(maxVal.toString());
-                      else setDebtAmount(val);
-                    }}
-                    placeholder="0"
-                    className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-lg"
-                  />
-                </div>
-                <p className="text-[9px] text-gray-500 mt-2 text-center">
-                  ※この金額は共同の生活費から除外され、未精算の立替バランスに反映されます。
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all shadow-sm">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-gray-700">この支出だけ割り勘割合を変更する</label>
-            <button
-              type="button"
-              onClick={() => setIsCustomSplit(!isCustomSplit)}
-              className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${isCustomSplit ? 'bg-teal-500' : 'bg-gray-300'}`}
-            >
-              <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${isCustomSplit ? 'translate-x-7' : 'translate-x-1'}`} />
-            </button>
-          </div>
-          
-          {isCustomSplit && (
-            <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-gray-200 pt-4">
-              <div className="flex gap-2 mb-4 p-1 bg-gray-200/50 rounded-xl">
-                <button 
-                  type="button"
-                  onClick={() => setCustomSplitMode('ratio')}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'ratio' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  割合(%)で指定
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setCustomSplitMode('amount')}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'amount' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  金額(円)で指定
-                </button>
-              </div>
-
-              {customSplitMode === 'ratio' ? (
-                <div>
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="flex-1 text-center truncate">
-                      <p className="text-[10px] font-bold text-teal-600 mb-1 truncate">{users.user1.name}</p>
-                      <div className="text-xl font-bold text-gray-800">{customUser1Ratio}%</div>
-                    </div>
-                    <span className="font-bold text-gray-300 flex-shrink-0">:</span>
-                    <div className="flex-1 text-center truncate">
-                      <p className="text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name}</p>
-                      <div className="text-xl font-bold text-gray-800">{100 - customUser1Ratio}%</div>
-                    </div>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="0" max="100" 
-                    value={customUser1Ratio} 
-                    onChange={(e) => setCustomUser1Ratio(Number(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500 mt-2"
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold text-teal-600 mb-1 text-center truncate">{users.user1.name} (負担額)</label>
-                    <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
-                      <input 
-                        type="number" 
-                        inputMode="numeric"
-                        pattern="\d*"
-                        value={customUser1Amount} 
-                        onChange={(e) => setCustomUser1Amount(e.target.value)}
-                        placeholder="0"
-                        className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg"
-                      />
-                    </div>
-                  </div>
-                  <span className="font-bold text-gray-300 mt-4 flex-shrink-0">:</span>
-                  <div className="flex-1 text-center min-w-0">
-                    <label className="block text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name} (残り)</label>
-                    <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end truncate">
-                      ¥{Math.max(0, (Number(amount) || 0) - (hasDebt ? Number(debtAmount) || 0 : 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <div>
@@ -985,6 +879,164 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
+        <div className="pt-2 border-t border-gray-100">
+          <button 
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center justify-center gap-1 w-full py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            詳細な設定を追加 (立替・個別割り勘)
+            {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          
+          {showAdvanced && (
+            <div className="space-y-4 pt-3 pb-2 animate-in fade-in slide-in-from-top-2">
+              <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 transition-all shadow-sm">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700 flex items-center gap-2">
+                    個人的な立替・精算を含める
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setHasDebt(!hasDebt)}
+                    className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${hasDebt ? 'bg-orange-500' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${hasDebt ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                
+                {hasDebt && (
+                  <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-orange-200 pt-4">
+                    <div className="flex gap-2 mb-4 p-1 bg-orange-200/50 rounded-xl">
+                      <button 
+                        type="button"
+                        onClick={() => setDebtType('borrow')}
+                        className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'borrow' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
+                      >
+                        {paidBy === 'user1' ? `${users.user2.name}の分を立て替えた` : `${users.user1.name}の分を立て替えた`}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setDebtType('repay')}
+                        className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'repay' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
+                      >
+                        立て替えてもらっていた分を返す
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-orange-600 mb-1 text-center">立替・精算に充てる金額</label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
+                        <input 
+                          type="number" 
+                          inputMode="numeric"
+                          pattern="\d*"
+                          value={debtAmount} 
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') { setDebtAmount(''); return; }
+                            const numVal = Number(val);
+                            const maxVal = Number(amount) || 0;
+                            if (numVal > maxVal) setDebtAmount(maxVal.toString());
+                            else setDebtAmount(val);
+                          }}
+                          placeholder="0"
+                          className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-lg"
+                        />
+                      </div>
+                      <p className="text-[9px] text-gray-500 mt-2 text-center">
+                        ※この金額は共同の生活費から除外され、未精算の立替バランスに反映されます。
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all shadow-sm">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700">この支出だけ割り勘割合を変更する</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomSplit(!isCustomSplit)}
+                    className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${isCustomSplit ? 'bg-teal-500' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${isCustomSplit ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                
+                {isCustomSplit && (
+                  <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-gray-200 pt-4">
+                    <div className="flex gap-2 mb-4 p-1 bg-gray-200/50 rounded-xl">
+                      <button 
+                        type="button"
+                        onClick={() => setCustomSplitMode('ratio')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'ratio' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        割合(%)で指定
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setCustomSplitMode('amount')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'amount' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        金額(円)で指定
+                      </button>
+                    </div>
+
+                    {customSplitMode === 'ratio' ? (
+                      <div>
+                        <div className="flex items-center gap-4 mb-2">
+                          <div className="flex-1 text-center truncate">
+                            <p className="text-[10px] font-bold text-teal-600 mb-1 truncate">{users.user1.name}</p>
+                            <div className="text-xl font-bold text-gray-800">{customUser1Ratio}%</div>
+                          </div>
+                          <span className="font-bold text-gray-300 flex-shrink-0">:</span>
+                          <div className="flex-1 text-center truncate">
+                            <p className="text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name}</p>
+                            <div className="text-xl font-bold text-gray-800">{100 - customUser1Ratio}%</div>
+                          </div>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="0" max="100" 
+                          value={customUser1Ratio} 
+                          onChange={(e) => setCustomUser1Ratio(Number(e.target.value))}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500 mt-2"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-teal-600 mb-1 text-center truncate">{users.user1.name} (負担額)</label>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
+                            <input 
+                              type="number" 
+                              inputMode="numeric"
+                              pattern="\d*"
+                              value={customUser1Amount} 
+                              onChange={(e) => setCustomUser1Amount(e.target.value)}
+                              placeholder="0"
+                              className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg"
+                            />
+                          </div>
+                        </div>
+                        <span className="font-bold text-gray-300 mt-4 flex-shrink-0">:</span>
+                        <div className="flex-1 text-center min-w-0">
+                          <label className="block text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name} (残り)</label>
+                          <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end truncate">
+                            ¥{Math.max(0, (Number(amount) || 0) - (hasDebt ? Number(debtAmount) || 0 : 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {existingTransactions.length > 0 && (
           <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
             <h3 className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-1.5">
@@ -1001,7 +1053,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                        <span className={`text-[10px] font-bold whitespace-nowrap px-1.5 py-0.5 rounded ${isEditingThis ? 'bg-teal-100 text-teal-600' : 'bg-gray-50 text-gray-400'}`}>{cat.name}</span>
                        <span className={`font-bold text-xs truncate ${isEditingThis ? 'text-teal-700' : 'text-gray-700'}`}>{t.memo || 'メモなし'}</span>
                     </div>
-                    <span className={`font-bold text-xs ml-2 whitespace-nowrap ${isEditingThis ? 'text-teal-800' : 'text-gray-800'}`}>¥{t.amount.toLocaleString()}</span>
+                    <span className={`font-bold text-xs ml-2 whitespace-nowrap flex-shrink-0 ${isEditingThis ? 'text-teal-800' : 'text-gray-800'}`}>¥{t.amount.toLocaleString()}</span>
                   </div>
                 );
               })}
@@ -1043,8 +1095,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   );
 };
 
-const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory, historyTab, setHistoryTab }) => {
-  const [selectedCalDate, setSelectedCalDate] = useState(null);
+const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory, historyTab, setHistoryTab, selectedCalDate, setSelectedCalDate }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const memoSuggestions = useMemo(() => {
@@ -1218,18 +1269,19 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
 
   return (
     <div className="p-5 h-full overflow-y-auto pb-24 animate-in fade-in duration-300">
-      <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
-        <button 
-          onClick={() => { setHistoryTab('list'); setSearchQuery(''); setSearchCategory('all'); }}
-          className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'list' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          <List size={16} /> リスト
-        </button>
+      
+      <div className="flex bg-gray-200/70 p-1 rounded-xl mb-6">
         <button 
           onClick={() => setHistoryTab('calendar')}
-          className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${historyTab === 'calendar' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${historyTab === 'calendar' ? 'bg-white shadow-sm text-teal-700' : 'text-gray-500 hover:text-gray-700'}`}
         >
           <CalendarIcon size={16} /> カレンダー
+        </button>
+        <button 
+          onClick={() => { setHistoryTab('list'); setSearchQuery(''); setSearchCategory('all'); }}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${historyTab === 'list' ? 'bg-white shadow-sm text-teal-700' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <List size={16} /> リスト
         </button>
       </div>
 
@@ -1373,7 +1425,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                     <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{dDisplay}</span>
                     {hasData && (
                       <span 
-                        className="text-[8px] sm:text-[9px] text-teal-600 font-bold mt-auto w-full leading-tight px-0.5 text-center break-all"
+                        className="text-[8px] sm:text-[9px] text-teal-600 font-bold mt-auto w-full leading-none px-0.5 text-center break-all tracking-tighter"
                       >
                         ¥{hasData.total.toLocaleString()}
                       </span>
@@ -1521,16 +1573,17 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
 
   return (
     <div className="p-5 h-full overflow-y-auto pb-24 animate-in fade-in duration-300">
-      <div className="flex gap-2 mb-6 p-1.5 bg-gray-100 rounded-2xl">
+      
+      <div className="flex bg-gray-200/70 p-1 rounded-xl mb-6">
         <button 
           onClick={() => setReportMode('monthly')}
-          className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${reportMode === 'monthly' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${reportMode === 'monthly' ? 'bg-white shadow-sm text-teal-700' : 'text-gray-500 hover:text-gray-700'}`}
         >
           月間推移 (前月比)
         </button>
         <button 
           onClick={() => setReportMode('yearly')}
-          className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${reportMode === 'yearly' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${reportMode === 'yearly' ? 'bg-white shadow-sm text-teal-700' : 'text-gray-500 hover:text-gray-700'}`}
         >
           年間推移 (昨年比)
         </button>
@@ -1967,7 +2020,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         各種設定
       </h2>
 
-      {/* 👤 基本設定セクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">基本設定</h3>
       
       <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
@@ -2015,7 +2067,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         </div>
       </div>
 
-      {/* 💰 ルール設定セクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">お金のルール</h3>
 
       <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4">
@@ -2166,7 +2217,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         </div>
       </div>
 
-      {/* 🛠 カスタマイズセクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">カスタマイズ</h3>
 
       <button 
@@ -2340,7 +2390,6 @@ export default function App() {
     return [...DEFAULT_CATEGORIES, ...(settings.customCategories || [])];
   }, [settings.customCategories]);
 
-  // 💡 最近の記録（最新3件）を取得
   const recentTransactions = useMemo(() => {
     return [...transactions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 3);
   }, [transactions]);
