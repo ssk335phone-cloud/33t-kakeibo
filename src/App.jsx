@@ -1240,7 +1240,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
     if (historySortMode === 'date-desc' || historySortMode === 'date-asc') {
       const isDesc = historySortMode === 'date-desc';
       sorted.sort((a, b) => {
-        if (a.date !== b.date) return isDesc ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
+        if (a.date !== b.date) return isDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date);
         return isDesc ? (b.createdAt || 0) - (a.createdAt || 0) : (a.createdAt || 0) - (b.createdAt || 0);
       });
       return { type: 'flat', data: sorted };
@@ -1567,7 +1567,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
-          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -2399,6 +2398,7 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         </div>
       </div>
 
+      {/* 🛠 カスタマイズセクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">カスタマイズ</h3>
 
       <button 
