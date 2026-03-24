@@ -116,6 +116,21 @@ const COLOR_PRESETS = [
   { color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
+const DEFAULT_CATEGORIES = [
+  { id: 'food', name: '食費', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
+  { id: 'eatout', name: '外食費', iconName: 'Coffee', color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
+  { id: 'daily', name: '日用品', iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
+  { id: 'rent', name: '住居費', iconName: 'HomeIcon', color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
+  { id: 'utility', name: '電気・ガス', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
+  { id: 'water', name: '水道代', iconName: 'Droplets', color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
+  { id: 'telecom', name: '通信費', iconName: 'Smartphone', color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
+  { id: 'dog', name: 'お犬', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
+  { id: 'event', name: 'イベント', iconName: 'PartyPopper', color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
+  { id: 'leisure', name: 'レジャー費', iconName: 'Smile', color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
+  { id: 'transport', name: '交通・車両費', iconName: 'Train', color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
+  { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
+];
+
 const getTodayStr = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -357,7 +372,6 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
         dateRangeText={dateRangeText}
       />
 
-      {/* 💡 追加：未登録の固定費がある場合のアラートバナー */}
       {unrecordedFixedExpenses.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-3xl animate-in fade-in slide-in-from-top-2">
           <div className="flex items-start gap-3">
@@ -886,7 +900,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               className="w-full pl-10 pr-4 py-4 text-right text-2xl sm:text-3xl font-bold bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-sm"
             />
           </div>
-          {/* 💡 追加：クイック加算ボタン */}
           <div className="flex gap-2 mt-2">
             {[1000, 500, 100].map(val => (
               <button 
@@ -924,63 +937,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
                 {u.name}
               </button>
             ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-gray-500 mb-2 flex justify-between items-end">
-            <span>ジャンル</span>
-            <button onClick={() => setActiveTab('settings')} className="text-[10px] text-teal-600 hover:underline">追加・編集</button>
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {categories.map(c => {
-              const Icon = ICON_MAP[c.iconName] || ICON_MAP.MoreHorizontal;
-              const isSelected = categoryId === c.id;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setCategoryId(c.id)}
-                  className={`flex flex-col items-center justify-start py-3 px-1 rounded-2xl transition-all border-2 ${
-                    isSelected ? 'border-teal-500 bg-teal-50 scale-105 shadow-sm' : 'border-transparent bg-white shadow-sm hover:bg-gray-50'
-                  }`}
-                >
-                  <div className={`p-2 rounded-full mb-1 flex-shrink-0 ${isSelected ? 'bg-teal-500 text-white' : c.color}`}>
-                    <Icon size={18} />
-                  </div>
-                  <span className={`text-[10px] leading-tight font-bold text-center break-words w-full px-0.5 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
-                    {c.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-bold text-gray-500 mb-1">日付</label>
-            <input 
-              type="date" 
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
-            />
-          </div>
-          <div className="flex-[2]">
-            <label className="block text-xs font-bold text-gray-500 mb-1">詳細・メモ</label>
-            <input 
-              type="text" 
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="何に使った？ (任意)"
-              list="memo-options"
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
-            />
-            <datalist id="memo-options">
-              {memoSuggestions.map((m, idx) => (
-                <option key={idx} value={m} />
-              ))}
-            </datalist>
           </div>
         </div>
 
@@ -1140,6 +1096,63 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               </div>
             </div>
           )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-500 mb-2 flex justify-between items-end">
+            <span>ジャンル</span>
+            <button onClick={() => setActiveTab('settings')} className="text-[10px] text-teal-600 hover:underline">追加・編集</button>
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {categories.map(c => {
+              const Icon = ICON_MAP[c.iconName] || ICON_MAP.MoreHorizontal;
+              const isSelected = categoryId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setCategoryId(c.id)}
+                  className={`flex flex-col items-center justify-start py-3 px-1 rounded-2xl transition-all border-2 ${
+                    isSelected ? 'border-teal-500 bg-teal-50 scale-105 shadow-sm' : 'border-transparent bg-white shadow-sm hover:bg-gray-50'
+                  }`}
+                >
+                  <div className={`p-2 rounded-full mb-1 flex-shrink-0 ${isSelected ? 'bg-teal-500 text-white' : c.color}`}>
+                    <Icon size={18} />
+                  </div>
+                  <span className={`text-[10px] leading-tight font-bold text-center break-words w-full px-0.5 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
+                    {c.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-bold text-gray-500 mb-1">日付</label>
+            <input 
+              type="date" 
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
+            />
+          </div>
+          <div className="flex-[2]">
+            <label className="block text-xs font-bold text-gray-500 mb-1">詳細・メモ</label>
+            <input 
+              type="text" 
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="何に使った？ (任意)"
+              list="memo-options"
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
+            />
+            <datalist id="memo-options">
+              {memoSuggestions.map((m, idx) => (
+                <option key={idx} value={m} />
+              ))}
+            </datalist>
+          </div>
         </div>
 
         {existingTransactions.length > 0 && (
@@ -1526,7 +1539,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                 const isSelected = selectedCalDate === dateStr;
                 const isToday = dateStr === getTodayStr();
 
-                // 💡 追加：ヒートマップ用の色計算
                 let bgClass = 'bg-gray-50 hover:bg-gray-100';
                 if (hasData && maxDailyAmount > 0) {
                   const ratio = hasData.total / maxDailyAmount;
@@ -2770,49 +2782,6 @@ export default function App() {
     setSelectedMonth(d.toISOString().slice(0, 7));
   };
 
-  // 💡 追加：未登録の固定費を判定する
-  const unrecordedFixedExpenses = useMemo(() => {
-    const todayStr = getTodayStr();
-    const isCurrentMonth = todayStr >= startDate && todayStr <= endDate;
-    if (!isCurrentMonth) return []; 
-    if (!fixedExpenses || fixedExpenses.length === 0) return [];
-    
-    return fixedExpenses.filter(expense => {
-      const isAlreadyRegistered = currentMonthTransactions.some(tx => 
-        tx.memo === expense.memo && 
-        tx.amount === expense.amount && 
-        tx.categoryId === expense.categoryId
-      );
-      return !isAlreadyRegistered;
-    });
-  }, [fixedExpenses, currentMonthTransactions, startDate, endDate]);
-
-  const handleRegisterMonthly = async () => {
-    if (unrecordedFixedExpenses.length === 0) return;
-    setIsSavingFixed(true);
-    const { endDate } = getMonthDateRange(selectedMonth, settings.closingDate);
-
-    try {
-      const promises = unrecordedFixedExpenses.map(expense => 
-        addDoc(txCollection, {
-          date: endDate,
-          amount: expense.amount,
-          paidBy: expense.paidBy,
-          categoryId: expense.categoryId,
-          memo: expense.memo,
-          createdAt: Date.now()
-        })
-      );
-      await Promise.all(promises);
-      showToast(`今月の固定費（${unrecordedFixedExpenses.length}件）を登録しました！`);
-    } catch (e) {
-      console.error(e);
-      showToast('エラーが発生しました');
-    } finally {
-      setIsSavingFixed(false);
-    }
-  };
-
   if (!isPassphraseValid) {
     return (
       <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden font-sans text-gray-800 flex items-center justify-center p-5">
@@ -2879,9 +2848,9 @@ export default function App() {
             setSearchCategory={setSearchCategory}
             u1NetDebt={u1NetDebt}
             recentTransactions={recentTransactions} 
-            unrecordedFixedExpenses={unrecordedFixedExpenses} // 💡 追記
-            handleRegisterMonthly={handleRegisterMonthly} // 💡 追記
-            isSavingFixed={isSavingFixed} // 💡 追記
+            unrecordedFixedExpenses={unrecordedFixedExpenses}
+            handleRegisterMonthly={handleRegisterMonthly}
+            isSavingFixed={isSavingFixed}
           />
         )}
         {activeTab === 'add' && (
