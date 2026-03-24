@@ -126,14 +126,12 @@ const DEFAULT_CATEGORIES = [
   { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
-// --- 💡 タイムゾーンズレを考慮した今日の日付取得関数 ---
 const getTodayStr = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 10);
 };
 
-// --- 締め日計算ロジック ---
 const getMonthDateRange = (yearMonth, closingDate) => {
   const [yearStr, monthStr] = yearMonth.split('-');
   const year = parseInt(yearStr, 10);
@@ -374,12 +372,27 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
           </div>
         </div>
 
-        <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center text-xs text-gray-500 font-medium border border-gray-100">
-          <span className="truncate">負担目安: ¥{stats.u1Target.toLocaleString()}</span>
-          <span className="bg-white px-2 py-1 rounded-md shadow-sm border border-gray-200 text-[10px] mx-2 flex-shrink-0">
-            {settings.splitMethod === 'ratio' ? `ルール: ${settings.user1Ratio}:${100-settings.user1Ratio}` : '金額固定'}
-          </span>
-          <span className="truncate">負担目安: ¥{stats.u2Target.toLocaleString()}</span>
+        {/* 💡 負担目安を上下に配置し、金額を見切れなく表示する */}
+        <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-2 border border-gray-100">
+          <div className="flex justify-center mb-1">
+            <span className="bg-white px-3 py-1 rounded-lg shadow-sm border border-gray-200 text-[10px] font-bold text-gray-500">
+              {settings.splitMethod === 'ratio' ? `ルール: ${settings.user1Ratio} : ${100-settings.user1Ratio}` : '金額固定'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <div className="flex items-center gap-1.5 text-gray-600 font-medium">
+              <div className={`w-2 h-2 rounded-full ${users.user1.color}`}></div>
+              <span className="truncate">{users.user1.name} 負担目安</span>
+            </div>
+            <span className="font-bold text-gray-800">¥{stats.u1Target.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <div className="flex items-center gap-1.5 text-gray-600 font-medium">
+              <div className={`w-2 h-2 rounded-full ${users.user2.color}`}></div>
+              <span className="truncate">{users.user2.name} 負担目安</span>
+            </div>
+            <span className="font-bold text-gray-800">¥{stats.u2Target.toLocaleString()}</span>
+          </div>
         </div>
       </div>
 
@@ -512,7 +525,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
   );
 };
 
-const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, selectedDateForNewTx, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast, transactions, currentUserType }) => {
+const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setCopyTemplate, selectedDateForNewTx, setActiveTab, setSelectedMonth, users, categories, settings, db, appId, txCollection, showToast, transactions, currentUserType, previousTab }) => {
   const isEdit = mode === 'edit';
   const txToEdit = isEdit ? editingTx : null;
   const defaultCategoryId = categories.length > 0 ? categories[0].id : 'food';
@@ -662,11 +675,8 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           }
           setSelectedMonth(targetMonth);
           
-          if (selectedDateForNewTx) {
-            setActiveTab('history');
-          } else {
-            setActiveTab('home');
-          }
+          // 💡 カレンダー（または元の画面）に戻るように改善
+          setActiveTab(previousTab === 'history' || selectedDateForNewTx ? 'history' : 'home');
         }
       }
     } catch (error) {
@@ -989,8 +999,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   );
 };
 
-const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, setSelectedDateForNewTx, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory, historyTab, setHistoryTab }) => {
-  const [selectedCalDate, setSelectedCalDate] = useState(null);
+const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, historySortMode, setHistorySortMode, categories, users, settings, setCopyTemplate, setEditingTx, selectedCalDate, setSelectedCalDate, setActiveTab, showToast, db, appId, searchCategory, setSearchCategory, historyTab, setHistoryTab }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const memoSuggestions = useMemo(() => {
@@ -1080,14 +1089,12 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
   const handleCopy = (tx) => {
     setCopyTemplate(tx);
     setEditingTx(null);
-    setSelectedDateForNewTx(null);
     setActiveTab('add');
   };
 
   const handleEdit = (tx) => {
     setEditingTx(tx);
     setCopyTemplate(null);
-    setSelectedDateForNewTx(null);
     setActiveTab('edit');
   };
 
@@ -1299,6 +1306,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                 <div key={d} className={`text-[10px] font-bold py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}>{d}</div>
               ))}
               
+              {/* 💡 カレンダーのマス目を少し高くし、金額がすべて見えるように修正 */}
               {calendarDays.map((dateStr, i) => {
                 if (!dateStr) return <div key={`empty-${i}`} className="p-1"></div>;
                 
@@ -1314,11 +1322,13 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                   <div 
                     key={dateStr}
                     onClick={() => setSelectedCalDate(isSelected ? null : dateStr)}
-                    className={`flex flex-col items-center justify-start p-0.5 sm:p-1 h-14 sm:h-16 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-teal-500 bg-teal-50 shadow-sm scale-105 z-10' : 'border-transparent bg-gray-50 hover:bg-gray-100'} ${isToday && !isSelected ? 'border-gray-200 bg-white' : ''}`}
+                    className={`flex flex-col items-center justify-start p-0.5 sm:p-1 h-16 sm:h-20 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-teal-500 bg-teal-50 shadow-sm scale-105 z-10' : 'border-transparent bg-gray-50 hover:bg-gray-100'} ${isToday && !isSelected ? 'border-gray-200 bg-white' : ''}`}
                   >
                     <span className={`text-[10px] font-bold ${isSelected ? 'text-teal-700' : isToday ? 'text-gray-800' : 'text-gray-500'}`}>{dDisplay}</span>
                     {hasData && (
-                      <span className="text-[8px] text-teal-600 font-bold mt-auto truncate w-full break-all leading-tight px-0.5 text-center">
+                      <span 
+                        className="text-[8px] sm:text-[9px] text-teal-600 font-bold mt-auto w-full leading-tight px-0.5 text-center break-all"
+                      >
                         ¥{hasData.total.toLocaleString()}
                       </span>
                     )}
@@ -1328,7 +1338,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
-          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -1336,18 +1345,6 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                   <CalendarCheck size={16} className="text-teal-600" />
                   {selectedCalDate.replace(/-/g, '/')} の詳細
                 </h3>
-                <button
-                  onClick={() => {
-                    setCopyTemplate(null);
-                    setEditingTx(null);
-                    setSelectedDateForNewTx(selectedCalDate);
-                    setActiveTab('add');
-                  }}
-                  className="text-[10px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition-colors flex items-center gap-1"
-                >
-                  <Plus size={14} strokeWidth={2.5} />
-                  この日に記録
-                </button>
               </div>
               {dailyData[selectedCalDate] ? (
                 <div className="space-y-3">
@@ -1363,7 +1360,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
           {!selectedCalDate && (
             <div className="text-center py-6">
               <p className="text-gray-400 font-medium text-xs flex items-center justify-center gap-1">
-                カレンダーの日付をタップすると詳細が表示されます
+                カレンダーの日付をタップして、下の＋から記録できます
               </p>
             </div>
           )}
@@ -1513,7 +1510,6 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
               const sum = dataPoints.reduce((a,b)=>a+b,0);
               if (sum === 0) return null;
               
-              // 💡 ジャンル別の前月比を計算
               const currMonth = dataPoints[5];
               const prevMonth = dataPoints[4];
               const diff = currMonth - prevMonth;
@@ -2244,7 +2240,10 @@ export default function App() {
   const [loginError, setLoginError] = useState(false);
 
   const [activeTab, setActiveTab] = useState('home');
-  const [historyTab, setHistoryTab] = useState('list');
+  const [previousTab, setPreviousTab] = useState('home'); // 💡 追加：直前にいたタブを記憶する
+  
+  // 💡 履歴のデフォルトを「カレンダー」に変更
+  const [historyTab, setHistoryTab] = useState('calendar');
   
   const [transactions, setTransactions] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
@@ -2268,6 +2267,8 @@ export default function App() {
     return localStorage.getItem('shareloo_currentUserType') || 'user1';
   });
 
+  // 💡 Appレベルでカレンダーの選択状態を保持する
+  const [selectedCalDate, setSelectedCalDate] = useState(null);
   const [selectedDateForNewTx, setSelectedDateForNewTx] = useState(null);
 
   const [editingTx, setEditingTx] = useState(null);
@@ -2294,6 +2295,14 @@ export default function App() {
     });
     return debt;
   }, [transactions, settings.initialDebt]);
+
+  // 💡 タブ切り替え用の関数
+  const handleTabChange = (tabName) => {
+    if (activeTab !== tabName && activeTab !== 'add' && activeTab !== 'edit') {
+      setPreviousTab(activeTab);
+    }
+    setActiveTab(tabName);
+  };
 
   useEffect(() => {
     if (!isPassphraseValid) return;
@@ -2522,7 +2531,7 @@ export default function App() {
             users={users}
             categories={categories}
             settings={settings}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabChange}
             setSearchCategory={setSearchCategory}
             u1NetDebt={u1NetDebt}
           />
@@ -2535,7 +2544,7 @@ export default function App() {
             copyTemplate={copyTemplate}
             setCopyTemplate={setCopyTemplate}
             selectedDateForNewTx={selectedDateForNewTx}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabChange}
             setSelectedMonth={setSelectedMonth}
             users={users}
             categories={categories}
@@ -2546,6 +2555,7 @@ export default function App() {
             showToast={showToast}
             transactions={transactions}
             currentUserType={currentUserType} 
+            previousTab={previousTab} // 💡 追記
           />
         )}
         {activeTab === 'edit' && (
@@ -2556,7 +2566,7 @@ export default function App() {
             copyTemplate={copyTemplate}
             setCopyTemplate={setCopyTemplate}
             selectedDateForNewTx={null}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabChange}
             setSelectedMonth={setSelectedMonth}
             users={users}
             categories={categories}
@@ -2567,6 +2577,7 @@ export default function App() {
             showToast={showToast}
             transactions={transactions}
             currentUserType={currentUserType} 
+            previousTab={previousTab} // 💡 追記
           />
         )}
         {activeTab === 'history' && (
@@ -2588,7 +2599,7 @@ export default function App() {
             setCopyTemplate={setCopyTemplate}
             setEditingTx={setEditingTx}
             setSelectedDateForNewTx={setSelectedDateForNewTx}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabChange}
             showToast={showToast}
             db={db}
             appId={appId}
@@ -2596,6 +2607,8 @@ export default function App() {
             setSearchCategory={setSearchCategory}
             historyTab={historyTab} 
             setHistoryTab={setHistoryTab} 
+            selectedCalDate={selectedCalDate} // 💡 追記
+            setSelectedCalDate={setSelectedCalDate} // 💡 追記
           />
         )}
         {activeTab === 'report' && (
@@ -2619,7 +2632,7 @@ export default function App() {
             appId={appId}
             showToast={showToast}
             setSelectedMonth={setSelectedMonth}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabChange}
             selectedMonth={selectedMonth}
             currentMonthTransactions={currentMonthTransactions}
           />
@@ -2629,7 +2642,7 @@ export default function App() {
             settings={settings}
             settingsDocRef={settingsDocRef}
             showToast={showToast}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabChange}
             currentUserType={currentUserType} 
             setCurrentUserType={setCurrentUserType} 
           />
@@ -2649,7 +2662,7 @@ export default function App() {
       >
         <div className="flex justify-around items-center h-14 px-1">
           <button 
-            onClick={() => setActiveTab('home')}
+            onClick={() => handleTabChange('home')}
             className={`flex flex-col items-center gap-0.5 w-12 transition-all duration-200 ${activeTab === 'home' ? 'text-teal-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
           >
             <Home size={20} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
@@ -2657,7 +2670,7 @@ export default function App() {
           </button>
           
           <button 
-            onClick={() => { setActiveTab('history'); setSearchCategory('all'); }}
+            onClick={() => { handleTabChange('history'); setSearchCategory('all'); }}
             className={`flex flex-col items-center gap-0.5 w-12 transition-all duration-200 ${activeTab === 'history' ? 'text-teal-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
           >
             <List size={20} strokeWidth={activeTab === 'history' ? 2.5 : 2} />
@@ -2668,8 +2681,9 @@ export default function App() {
             onClick={() => {
               setEditingTx(null);
               setCopyTemplate(null);
-              setSelectedDateForNewTx(null);
-              setActiveTab('add');
+              // 💡 追加: カレンダー画面で日付が選択されていればその日付を使う
+              setSelectedDateForNewTx(activeTab === 'history' && historyTab === 'calendar' && selectedCalDate ? selectedCalDate : null);
+              handleTabChange('add');
             }}
             className="flex flex-col items-center justify-center -translate-y-4 group"
           >
@@ -2679,7 +2693,7 @@ export default function App() {
           </button>
 
           <button 
-            onClick={() => setActiveTab('report')}
+            onClick={() => handleTabChange('report')}
             className={`flex flex-col items-center gap-0.5 w-12 transition-all duration-200 ${activeTab === 'report' ? 'text-teal-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
           >
             <BarChart3 size={20} strokeWidth={activeTab === 'report' ? 2.5 : 2} />
@@ -2687,7 +2701,7 @@ export default function App() {
           </button>
 
           <button 
-            onClick={() => setActiveTab('settings')}
+            onClick={() => handleTabChange('settings')}
             className={`flex flex-col items-center gap-0.5 w-12 transition-all duration-200 ${activeTab === 'settings' ? 'text-teal-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
           >
             <Settings size={20} strokeWidth={activeTab === 'settings' ? 2.5 : 2} className={activeTab === 'settings' ? 'animate-spin-slow' : ''} />
