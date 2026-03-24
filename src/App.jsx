@@ -6,7 +6,7 @@ import {
   CalendarCheck, 
   Utensils, 
   ShoppingCart, 
-  HomeIcon, 
+  Home as HomeIcon, 
   Zap, 
   Heart, 
   Train, 
@@ -938,6 +938,63 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
+        <div>
+          <label className="block text-xs font-bold text-gray-500 mb-2 flex justify-between items-end">
+            <span>ジャンル</span>
+            <button onClick={() => setActiveTab('settings')} className="text-[10px] text-teal-600 hover:underline">追加・編集</button>
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {categories.map(c => {
+              const Icon = ICON_MAP[c.iconName] || ICON_MAP.MoreHorizontal;
+              const isSelected = categoryId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setCategoryId(c.id)}
+                  className={`flex flex-col items-center justify-start py-3 px-1 rounded-2xl transition-all border-2 ${
+                    isSelected ? 'border-teal-500 bg-teal-50 scale-105 shadow-sm' : 'border-transparent bg-white shadow-sm hover:bg-gray-50'
+                  }`}
+                >
+                  <div className={`p-2 rounded-full mb-1 flex-shrink-0 ${isSelected ? 'bg-teal-500 text-white' : c.color}`}>
+                    <Icon size={18} />
+                  </div>
+                  <span className={`text-[10px] leading-tight font-bold text-center break-words w-full px-0.5 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
+                    {c.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-bold text-gray-500 mb-1">日付</label>
+            <input 
+              type="date" 
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
+            />
+          </div>
+          <div className="flex-[2]">
+            <label className="block text-xs font-bold text-gray-500 mb-1">詳細・メモ</label>
+            <input 
+              type="text" 
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="何に使った？ (任意)"
+              list="memo-options"
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
+            />
+            <datalist id="memo-options">
+              {memoSuggestions.map((m, idx) => (
+                <option key={idx} value={m} />
+              ))}
+            </datalist>
+          </div>
+        </div>
+
         <div className="pt-2 border-t border-gray-100">
           <button 
             onClick={() => setShowAdvanced(!showAdvanced)}
@@ -1094,63 +1151,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               </div>
             </div>
           )}
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-gray-500 mb-2 flex justify-between items-end">
-            <span>ジャンル</span>
-            <button onClick={() => setActiveTab('settings')} className="text-[10px] text-teal-600 hover:underline">追加・編集</button>
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {categories.map(c => {
-              const Icon = ICON_MAP[c.iconName] || ICON_MAP.MoreHorizontal;
-              const isSelected = categoryId === c.id;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setCategoryId(c.id)}
-                  className={`flex flex-col items-center justify-start py-3 px-1 rounded-2xl transition-all border-2 ${
-                    isSelected ? 'border-teal-500 bg-teal-50 scale-105 shadow-sm' : 'border-transparent bg-white shadow-sm hover:bg-gray-50'
-                  }`}
-                >
-                  <div className={`p-2 rounded-full mb-1 flex-shrink-0 ${isSelected ? 'bg-teal-500 text-white' : c.color}`}>
-                    <Icon size={18} />
-                  </div>
-                  <span className={`text-[10px] leading-tight font-bold text-center break-words w-full px-0.5 ${isSelected ? 'text-teal-700' : 'text-gray-500'}`}>
-                    {c.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-bold text-gray-500 mb-1">日付</label>
-            <input 
-              type="date" 
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
-            />
-          </div>
-          <div className="flex-[2]">
-            <label className="block text-xs font-bold text-gray-500 mb-1">詳細・メモ</label>
-            <input 
-              type="text" 
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="何に使った？ (任意)"
-              list="memo-options"
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm text-sm font-bold"
-            />
-            <datalist id="memo-options">
-              {memoSuggestions.map((m, idx) => (
-                <option key={idx} value={m} />
-              ))}
-            </datalist>
-          </div>
         </div>
 
         {existingTransactions.length > 0 && (
@@ -1567,6 +1567,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
+          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
@@ -2398,7 +2399,6 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
         </div>
       </div>
 
-      {/* 🛠 カスタマイズセクション */}
       <h3 className="text-[11px] font-bold text-gray-400 mb-2 ml-1 uppercase tracking-wider">カスタマイズ</h3>
 
       <button 
@@ -2701,6 +2701,48 @@ export default function App() {
   const currentMonthTransactions = useMemo(() => {
     return transactions.filter(t => t.date && t.date >= startDate && t.date <= endDate);
   }, [transactions, startDate, endDate]);
+
+  const unrecordedFixedExpenses = useMemo(() => {
+    const todayStr = getTodayStr();
+    const isCurrentMonth = todayStr >= startDate && todayStr <= endDate;
+    if (!isCurrentMonth) return []; 
+    if (!fixedExpenses || fixedExpenses.length === 0) return [];
+    
+    return fixedExpenses.filter(expense => {
+      const isAlreadyRegistered = currentMonthTransactions.some(tx => 
+        tx.memo === expense.memo && 
+        tx.amount === expense.amount && 
+        tx.categoryId === expense.categoryId
+      );
+      return !isAlreadyRegistered;
+    });
+  }, [fixedExpenses, currentMonthTransactions, startDate, endDate]);
+
+  const handleRegisterMonthly = async () => {
+    if (unrecordedFixedExpenses.length === 0) return;
+    setIsSavingFixed(true);
+    const { endDate: currentEndDate } = getMonthDateRange(selectedMonth, settings.closingDate);
+
+    try {
+      const promises = unrecordedFixedExpenses.map(expense => 
+        addDoc(txCollection, {
+          date: currentEndDate,
+          amount: expense.amount,
+          paidBy: expense.paidBy,
+          categoryId: expense.categoryId,
+          memo: expense.memo,
+          createdAt: Date.now()
+        })
+      );
+      await Promise.all(promises);
+      showToast(`今月の固定費（${unrecordedFixedExpenses.length}件）を登録しました！`);
+    } catch (e) {
+      console.error(e);
+      showToast('エラーが発生しました');
+    } finally {
+      setIsSavingFixed(false);
+    }
+  };
 
   const stats = useMemo(() => {
     let total = 0;
