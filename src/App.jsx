@@ -6,7 +6,7 @@ import {
   CalendarCheck, 
   Utensils, 
   ShoppingCart, 
-  Home as HomeIcon, 
+  HomeIcon, 
   Zap, 
   Heart, 
   Train, 
@@ -25,7 +25,7 @@ import {
   Pencil,
   ArrowUpDown,
   BarChart3,
-  Calendar as CalendarIcon,
+  CalendarIcon,
   Search,
   X,
   Coffee, 
@@ -48,7 +48,7 @@ import {
   Leaf,
   TrendingUp,
   TrendingDown,
-  ChevronRight as ChevronRightIcon,
+  ChevronRightIcon,
   User,
   Settings2,
   Clock,
@@ -87,7 +87,7 @@ const txCollection = collection(db, 'artifacts', appId, 'public', 'data', 'trans
 const fixedCollection = collection(db, 'artifacts', appId, 'public', 'data', 'fixedExpenses');
 const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'appSettings', 'general');
 
-// 🔒 【重要】お二人だけの秘密の合言葉
+// 🔒 お二人だけの秘密の合言葉
 const SECRET_PASSPHRASE = "!1214083120190322";
 
 // --- アイコンとカラーの設定 ---
@@ -141,7 +141,6 @@ const getMonthDateRange = (yearMonth, closingDate) => {
   const [yearStr, monthStr] = yearMonth.split('-');
   const year = parseInt(yearStr, 10);
   const month = parseInt(monthStr, 10);
-
   const formatD = (d) => `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
 
   if (!closingDate || closingDate === 'end' || closingDate === '0') {
@@ -157,7 +156,6 @@ const getMonthDateRange = (yearMonth, closingDate) => {
 };
 
 // --- コンポーネント群 ---
-
 const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRangeText }) => {
   const year = parseInt(selectedMonth.split('-')[0], 10);
   const month = parseInt(selectedMonth.split('-')[1], 10);
@@ -182,7 +180,7 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
                 {years.map(y => <option key={y} value={y}>{y}年</option>)}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                <ChevronDown size={12} />
               </div>
             </div>
             <div className="relative">
@@ -194,7 +192,7 @@ const MonthSelector = ({ selectedMonth, onMonthChange, onPrev, onNext, dateRange
                 {months.map(m => <option key={m} value={m}>{m}月</option>)}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                <ChevronDown size={12} />
               </div>
             </div>
           </div>
@@ -1452,7 +1450,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
-                  <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                  <ChevronDown size={12} />
                 </div>
               </div>
             </div>
@@ -2500,7 +2498,10 @@ const SettingsView = ({ settings, settingsDocRef, showToast, setActiveTab, curre
             <div className="mt-4 flex items-center gap-3 p-2 bg-white rounded-xl border border-gray-200">
               <div className="text-[10px] text-gray-400 font-bold w-12 text-center">プレビュー</div>
               <div className={`p-1.5 rounded-full ${newCatColor.color}`}>
-                 {React.createElement(ICON_MAP[newCatIcon], { size: 14 })}
+                 {(() => {
+                   const PreviewIcon = ICON_MAP[newCatIcon] || ICON_MAP.Gift;
+                   return <PreviewIcon size={14} />;
+                 })()}
               </div>
               <span className="font-bold text-gray-800 text-xs">{newCatName || 'ジャンル名'}</span>
             </div>
