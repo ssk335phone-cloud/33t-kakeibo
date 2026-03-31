@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Home, 
   PlusCircle, 
@@ -56,7 +56,8 @@ import {
   ChevronUp,
   Download,
   AlertCircle,
-  Calculator
+  Calculator,
+  Flame
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -95,7 +96,7 @@ const SECRET_PASSPHRASE = "!1214083120190322";
 const ICON_MAP = {
   Utensils, ShoppingCart, HomeIcon, Zap, Heart, Train, MoreHorizontal,
   Coffee, Droplets, Smartphone, Dog, PartyPopper, Car, Plane, Gift, 
-  Monitor, Book, Music, Film, Scissors, Shirt, Pill, Smile, Baby
+  Monitor, Book, Music, Film, Scissors, Shirt, Pill, Smile, Baby, Flame
 };
 
 const COLOR_PRESETS = [
@@ -122,7 +123,8 @@ const DEFAULT_CATEGORIES = [
   { id: 'eatout', name: '外食費', iconName: 'Coffee', color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
   { id: 'daily', name: '日用品', iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
   { id: 'rent', name: '住居費', iconName: 'HomeIcon', color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
-  { id: 'utility', name: '電気・ガス', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
+  { id: 'electricity', name: '電気', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
+  { id: 'gas', name: 'ガス', iconName: 'Flame', color: 'bg-orange-100 text-orange-500', hexColor: '#f97316' },
   { id: 'water', name: '水道代', iconName: 'Droplets', color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
   { id: 'telecom', name: '通信費', iconName: 'Smartphone', color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
   { id: 'dog', name: 'お犬', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
@@ -176,13 +178,10 @@ const getMonthDateRange = (yearMonth, closingDate) => {
 // 💡 電卓機能（数式文字列の評価）
 const evaluateAmount = (expr) => {
   try {
-    // 全角の「＋」「－」などを半角に置換
     const halfExpr = String(expr).replace(/[＋－＊／＝]/g, s => ({'＋':'+', '－':'-', '＊':'*', '／':'/', '＝':'='}[s]))
                                  .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-    // 数字と + - * / . 以外の文字を除外
     const sanitized = halfExpr.replace(/[^\d+\-*/.]/g, '');
     if (!sanitized) return '';
-    // 安全に計算を実行
     const result = new Function(`return ${sanitized}`)();
     return Number.isFinite(result) ? Math.max(0, Math.round(result)).toString() : '';
   } catch (e) {
@@ -716,6 +715,9 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const [debtType, setDebtType] = useState('borrow'); 
   const [debtAmount, setDebtAmount] = useState('');
 
+  // 💡 フォーカス維持のための参照
+  const amountInputRef = useRef(null);
+
   const memoSuggestions = useMemo(() => {
     if (!transactions) return [];
     const memos = transactions.map(t => t.memo).filter(m => m && m.trim() !== '');
@@ -787,8 +789,23 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     }
   }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx, settings.user1Ratio, defaultCategoryId, currentUserType]);
 
+  // 💡 金額入力欄に対するボタンアクション処理
+  const handleAmountAction = (action) => {
+    if (action === 'calc') {
+      setAmount((prev) => evaluateAmount(prev));
+    } else if (action === 'clear') {
+      setAmount('');
+    } else {
+      setAmount((prev) => prev + action);
+    }
+    
+    // アクション後にフォーカスを戻す（維持する）
+    setTimeout(() => {
+      amountInputRef.current?.focus();
+    }, 0);
+  };
+
   const handleSave = async (continueEditing = false) => {
-    // 💡 保存前に計算式を評価する
     const finalAmountStr = evaluateAmount(amount);
     const numAmount = Number(finalAmountStr);
 
@@ -797,7 +814,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       return;
     }
     
-    // 計算結果を入力欄に反映
     setAmount(finalAmountStr);
 
     setIsSaving(true);
@@ -890,12 +906,12 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
 
       <div className="space-y-5">
         
-        {/* 💡 入力欄を電卓機能付きにアップデート */}
         <div>
           <label className="block text-xs font-bold text-gray-500 mb-1">金額</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">¥</span>
             <input 
+              ref={amountInputRef}
               type="text" 
               inputMode="decimal"
               value={amount}
@@ -908,28 +924,36 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           <div className="flex gap-2 mt-2">
             <button 
               type="button"
-              onClick={() => setAmount((prev) => prev + '+')}
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => e.preventDefault()}
+              onClick={() => handleAmountAction('+')}
               className="flex-1 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-lg font-bold text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm"
             >
               ＋
             </button>
             <button 
               type="button"
-              onClick={() => setAmount((prev) => prev + '-')}
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => e.preventDefault()}
+              onClick={() => handleAmountAction('-')}
               className="flex-1 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-lg font-bold text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm"
             >
               －
             </button>
             <button 
               type="button"
-              onClick={() => setAmount((prev) => evaluateAmount(prev))}
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => e.preventDefault()}
+              onClick={() => handleAmountAction('calc')}
               className="flex-[1.5] py-2 bg-teal-50 border border-teal-200 rounded-lg text-sm font-bold text-teal-700 hover:bg-teal-100 active:bg-teal-200 transition-colors shadow-sm flex items-center justify-center gap-1"
             >
               <Calculator size={14} /> 計算
             </button>
             <button 
               type="button"
-              onClick={() => setAmount('')}
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => e.preventDefault()}
+              onClick={() => handleAmountAction('clear')}
               className="flex-1 py-1.5 bg-rose-50 border border-rose-100 rounded-lg text-sm font-bold text-rose-600 hover:bg-rose-100 active:bg-rose-200 transition-colors shadow-sm"
             >
               クリア
