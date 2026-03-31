@@ -361,7 +361,7 @@ const LineChart = ({ data, labels, color }) => {
   );
 };
 
-const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt, recentTransactions, unrecordedFixedExpenses, handleRegisterMonthly, isSavingFixed, setEditingTx }) => {
+const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt, recentTransactions, unrecordedFixedExpenses, handleRegisterMonthly, isSavingFixed, setEditingTx, setHistoryTab }) => {
   let cumulativePercent = 0;
   const gradientStops = stats.categoryTotals.length > 0 
     ? stats.categoryTotals.map(c => {
@@ -563,7 +563,10 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
               最近の記録
             </h3>
             <button 
-              onClick={() => setActiveTab('history')}
+              onClick={() => {
+                setHistoryTab('list');
+                setActiveTab('history');
+              }}
               className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2.5 py-1.5 rounded-lg hover:bg-teal-100 transition-colors"
             >
               すべて見る
@@ -637,6 +640,7 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
                   key={c.id} 
                   onClick={() => {
                     setSearchCategory(c.id);
+                    setHistoryTab('list');
                     setActiveTab('history');
                   }}
                   className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-2xl cursor-pointer hover:bg-gray-100 transition-colors"
@@ -2946,6 +2950,7 @@ export default function App() {
             handleRegisterMonthly={handleRegisterMonthly}
             isSavingFixed={isSavingFixed}
             setEditingTx={setEditingTx}
+            setHistoryTab={setHistoryTab}
           />
         )}
         {activeTab === 'add' && (
