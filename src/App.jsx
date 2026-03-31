@@ -137,6 +137,23 @@ const getTodayStr = () => {
   return d.toISOString().slice(0, 10);
 };
 
+const calculateDefaultMonth = (closingDate) => {
+  const todayStr = getTodayStr();
+  const [yStr, mStr, dStr] = todayStr.split('-');
+  let ty = parseInt(yStr, 10);
+  let tm = parseInt(mStr, 10);
+  const d = parseInt(dStr, 10);
+
+  if (closingDate && closingDate !== 'end' && closingDate !== '0') {
+    const cd = parseInt(closingDate, 10);
+    if (d > cd) {
+       tm += 1;
+       if (tm > 12) { tm = 1; ty += 1; }
+    }
+  }
+  return `${ty}-${tm.toString().padStart(2, '0')}`;
+};
+
 const getMonthDateRange = (yearMonth, closingDate) => {
   const [yearStr, monthStr] = yearMonth.split('-');
   const year = parseInt(yearStr, 10);
@@ -327,7 +344,7 @@ const LineChart = ({ data, labels, color }) => {
   );
 };
 
-const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt, recentTransactions, unrecordedFixedExpenses, handleRegisterMonthly, isSavingFixed }) => {
+const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNextMonth, dateRangeText, startDate, endDate, stats, users, categories, settings, setActiveTab, setSearchCategory, u1NetDebt, recentTransactions, unrecordedFixedExpenses, handleRegisterMonthly, isSavingFixed, setEditingTx }) => {
   let cumulativePercent = 0;
   const gradientStops = stats.categoryTotals.length > 0 
     ? stats.categoryTotals.map(c => {
@@ -542,7 +559,14 @@ const HomeView = ({ selectedMonth, setSelectedMonth, handlePrevMonth, handleNext
               const Icon = ICON_MAP[cat.iconName] || ICON_MAP.MoreHorizontal;
               
               return (
-                <div key={t.id} className="flex justify-between items-center border-b border-gray-50 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
+                <div 
+                  key={t.id} 
+                  onClick={() => {
+                    setEditingTx(t);
+                    setActiveTab('edit');
+                  }}
+                  className="flex justify-between items-center border-b border-gray-50 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0 cursor-pointer hover:bg-gray-50 p-2 -mx-2 rounded-lg transition-colors"
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`p-2 rounded-full flex-shrink-0 ${cat.color}`}>
                       <Icon size={14} />
@@ -685,24 +709,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     return transactions.filter(t => t.date === date).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [transactions, date]);
 
-  const quickTemplates = useMemo(() => {
-    if (!transactions) return [];
-    const unique = [];
-    const seen = new Set();
-    const sorted = [...transactions].sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
-    
-    for (const t of sorted) {
-      if (!t.memo) continue; 
-      const key = `${t.categoryId}-${t.memo}-${t.amount}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(t);
-        if (unique.length >= 4) break; 
-      }
-    }
-    return unique;
-  }, [transactions]);
-
   useEffect(() => {
     if (isEdit && txToEdit) {
       setDate(txToEdit.date);
@@ -813,17 +819,19 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           const mainArea = document.getElementById('main-scroll-area');
           if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
-          const txDate = new Date(date);
-          const d = txDate.getDate();
-          let targetMonth = txDate.toISOString().slice(0, 7);
+          const [yStr, mStr, dStr] = date.split('-');
+          let ty = parseInt(yStr, 10);
+          let tm = parseInt(mStr, 10);
+          const d = parseInt(dStr, 10);
           
           if (settings.closingDate !== 'end' && settings.closingDate !== '0') {
             const cd = parseInt(settings.closingDate, 10);
             if (d > cd) {
-              const nextM = new Date(txDate.getFullYear(), txDate.getMonth() + 1, 1);
-              targetMonth = nextM.toISOString().slice(0, 7);
+              tm += 1;
+              if (tm > 12) { tm = 1; ty += 1; }
             }
           }
+          const targetMonth = `${ty}-${tm.toString().padStart(2, '0')}`;
           setSelectedMonth(targetMonth);
           
           setActiveTab(previousTab === 'history' || selectedDateForNewTx ? 'history' : 'home');
@@ -856,34 +864,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
 
       <div className="space-y-5">
         
-        {quickTemplates.length > 0 && !isEdit && (
-          <div className="mb-2">
-            <p className="text-[10px] font-bold text-gray-400 mb-2 flex items-center gap-1">
-              <Zap size={12} className="text-yellow-500" /> 履歴からサクッと入力
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {quickTemplates.map((t, idx) => {
-                const cat = categories.find(c => c.id === t.categoryId) || categories[0];
-                return (
-                  <button 
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setAmount(t.amount.toString());
-                      setCategoryId(t.categoryId);
-                      setMemo(t.memo);
-                    }}
-                    className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-2 rounded-full shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
-                  >
-                     <span className="text-[10px] text-gray-600 font-bold truncate max-w-[80px]">{t.memo}</span>
-                     <span className="text-[10px] text-teal-600 font-black">¥{t.amount.toLocaleString()}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         <div>
           <label className="block text-xs font-bold text-gray-500 mb-1">金額</label>
           <div className="relative">
@@ -2550,19 +2530,25 @@ export default function App() {
   
   const [transactions, setTransactions] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
-  const [settings, setSettings] = useState({ 
-    splitMethod: 'ratio', 
-    user1Ratio: 50, 
-    fixedPayer: 'user1', 
-    fixedAmount: 0,
-    user1Name: 'あなた',
-    user2Name: 'パートナー',
-    customCategories: [],
-    closingDate: 'end',
-    monthlyBudget: 0,
-    initialDebt: 0 
+  const [settings, setSettings] = useState(() => {
+    const cached = localStorage.getItem('shareloo_settings_v2');
+    if (cached) {
+      try { return JSON.parse(cached); } catch(e){}
+    }
+    return { 
+      splitMethod: 'ratio', 
+      user1Ratio: 50, 
+      fixedPayer: 'user1', 
+      fixedAmount: 0,
+      user1Name: 'あなた',
+      user2Name: 'パートナー',
+      customCategories: [],
+      closingDate: 'end',
+      monthlyBudget: 0,
+      initialDebt: 0 
+    };
   });
-  const [selectedMonth, setSelectedMonth] = useState(getTodayStr().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(() => calculateDefaultMonth(settings.closingDate));
   const [historySortMode, setHistorySortMode] = useState('date-desc');
   const [searchCategory, setSearchCategory] = useState('all');
   
@@ -2655,7 +2641,7 @@ export default function App() {
     const unsubSettings = onSnapshot(settingsDocRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setSettings({
+        const newSettings = {
           splitMethod: data.splitMethod || 'ratio',
           user1Ratio: data.user1Ratio ?? 50,
           fixedPayer: data.fixedPayer || 'user1',
@@ -2666,7 +2652,9 @@ export default function App() {
           closingDate: data.closingDate || 'end',
           monthlyBudget: data.monthlyBudget || 0,
           initialDebt: data.initialDebt || 0
-        });
+        };
+        setSettings(newSettings);
+        localStorage.setItem('shareloo_settings_v2', JSON.stringify(newSettings));
       }
     }, (error) => console.error(error));
 
@@ -2894,6 +2882,7 @@ export default function App() {
             unrecordedFixedExpenses={unrecordedFixedExpenses}
             handleRegisterMonthly={handleRegisterMonthly}
             isSavingFixed={isSavingFixed}
+            setEditingTx={setEditingTx}
           />
         )}
         {activeTab === 'add' && (
