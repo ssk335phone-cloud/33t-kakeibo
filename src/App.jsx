@@ -6,7 +6,7 @@ import {
   CalendarCheck, 
   Utensils, 
   ShoppingCart, 
-  Home as HomeIcon, 
+  HomeIcon, 
   Zap, 
   Heart, 
   Train, 
@@ -55,7 +55,8 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
-  AlertCircle
+  AlertCircle,
+  Calculator
 } from 'lucide-react';
 
 // --- Firebase のインポート ---
@@ -169,6 +170,23 @@ const getMonthDateRange = (yearMonth, closingDate) => {
     const startD = new Date(year, month - 2, cd + 1);
     const endD = new Date(year, month - 1, cd);
     return { startDate: formatD(startD), endDate: formatD(endD) };
+  }
+};
+
+// 💡 電卓機能（数式文字列の評価）
+const evaluateAmount = (expr) => {
+  try {
+    // 全角の「＋」「－」などを半角に置換
+    const halfExpr = String(expr).replace(/[＋－＊／＝]/g, s => ({'＋':'+', '－':'-', '＊':'*', '／':'/', '＝':'='}[s]))
+                                 .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    // 数字と + - * / . 以外の文字を除外
+    const sanitized = halfExpr.replace(/[^\d+\-*/.]/g, '');
+    if (!sanitized) return '';
+    // 安全に計算を実行
+    const result = new Function(`return ${sanitized}`)();
+    return Number.isFinite(result) ? Math.max(0, Math.round(result)).toString() : '';
+  } catch (e) {
+    return expr;
   }
 };
 
@@ -770,15 +788,23 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx, settings.user1Ratio, defaultCategoryId, currentUserType]);
 
   const handleSave = async (continueEditing = false) => {
-    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+    // 💡 保存前に計算式を評価する
+    const finalAmountStr = evaluateAmount(amount);
+    const numAmount = Number(finalAmountStr);
+
+    if (!finalAmountStr || isNaN(numAmount) || numAmount <= 0) {
       showToast('正しい金額を入力してください');
       return;
     }
+    
+    // 計算結果を入力欄に反映
+    setAmount(finalAmountStr);
+
     setIsSaving(true);
     try {
       const payload = {
         date,
-        amount: Number(amount),
+        amount: numAmount,
         paidBy,
         categoryId,
         memo,
@@ -864,35 +890,47 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
 
       <div className="space-y-5">
         
+        {/* 💡 入力欄を電卓機能付きにアップデート */}
         <div>
           <label className="block text-xs font-bold text-gray-500 mb-1">金額</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">¥</span>
             <input 
-              type="number" 
-              inputMode="numeric"
-              pattern="\d*"
+              type="text" 
+              inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onBlur={() => setAmount(prev => evaluateAmount(prev))}
               placeholder="0"
               className="w-full pl-10 pr-4 py-4 text-right text-2xl sm:text-3xl font-bold bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-sm"
             />
           </div>
           <div className="flex gap-2 mt-2">
-            {[1000, 500, 100].map(val => (
-              <button 
-                key={val}
-                type="button"
-                onClick={() => setAmount((prev) => ((Number(prev) || 0) + val).toString())}
-                className="flex-1 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm"
-              >
-                +¥{val}
-              </button>
-            ))}
+            <button 
+              type="button"
+              onClick={() => setAmount((prev) => prev + '+')}
+              className="flex-1 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-lg font-bold text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm"
+            >
+              ＋
+            </button>
+            <button 
+              type="button"
+              onClick={() => setAmount((prev) => prev + '-')}
+              className="flex-1 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-lg font-bold text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm"
+            >
+              －
+            </button>
+            <button 
+              type="button"
+              onClick={() => setAmount((prev) => evaluateAmount(prev))}
+              className="flex-[1.5] py-2 bg-teal-50 border border-teal-200 rounded-lg text-sm font-bold text-teal-700 hover:bg-teal-100 active:bg-teal-200 transition-colors shadow-sm flex items-center justify-center gap-1"
+            >
+              <Calculator size={14} /> 計算
+            </button>
             <button 
               type="button"
               onClick={() => setAmount('')}
-              className="flex-1 py-1.5 bg-rose-50 border border-rose-100 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-100 active:bg-rose-200 transition-colors shadow-sm"
+              className="flex-1 py-1.5 bg-rose-50 border border-rose-100 rounded-lg text-sm font-bold text-rose-600 hover:bg-rose-100 active:bg-rose-200 transition-colors shadow-sm"
             >
               クリア
             </button>
@@ -1547,6 +1585,7 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
             </div>
           </div>
 
+          {/* カレンダーで選択した日の詳細リスト */}
           {selectedCalDate && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-3">
