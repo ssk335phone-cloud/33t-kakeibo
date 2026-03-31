@@ -1593,12 +1593,12 @@ const HistoryView = ({ transactions, currentMonthTransactions, selectedMonth, se
                   <div 
                     key={dateStr}
                     onClick={() => setSelectedCalDate(isSelected ? null : dateStr)}
-                    className={`flex flex-col items-center justify-start p-0.5 sm:p-1 h-16 sm:h-20 rounded-xl border-2 cursor-pointer transition-all ${bgClass} ${isSelected ? 'scale-105 z-10' : 'border-transparent'}`}
+                    className={`flex flex-col items-center justify-start p-0.5 sm:p-1 h-12 sm:h-14 rounded-xl border-2 cursor-pointer transition-all overflow-visible ${bgClass} ${isSelected ? 'scale-105 z-10' : 'border-transparent'}`}
                   >
                     <span className={`text-[10px] font-bold ${isSelected ? 'text-white' : isToday && !hasData ? 'text-gray-800' : hasData ? 'text-teal-900' : 'text-gray-500'}`}>{dDisplay}</span>
                     {hasData && (
                       <span 
-                        className={`text-[8px] sm:text-[9px] font-bold mt-auto w-full leading-none px-0.5 text-center break-all tracking-tighter ${isSelected ? 'text-teal-100' : 'text-teal-800'}`}
+                        className={`text-[8px] sm:text-[9px] font-bold mt-auto w-full leading-[1.1] px-0.5 text-center break-all tracking-tighter ${isSelected ? 'text-teal-100' : 'text-teal-800'}`}
                       >
                         ¥{hasData.total.toLocaleString()}
                       </span>
