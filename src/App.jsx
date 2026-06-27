@@ -119,21 +119,23 @@ const COLOR_PRESETS = [
   { color: 'bg-stone-100 text-stone-600', hexColor: '#57534e' },
 ];
 
-// 💡 16個のカテゴリをデフォルト化（立替と返済を追加）
+// 💡 過去のデータ（ID）との互換性を保つために、元のIDを復活させました
 const DEFAULT_CATEGORIES = [
   { id: 'food', name: '食費', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
   { id: 'eatout', name: '外食費', iconName: 'Coffee', color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
   { id: 'daily', name: '日用品', iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
   { id: 'rent', name: '住居費', iconName: 'HomeIcon', color: 'bg-emerald-100 text-emerald-600', hexColor: '#059669' },
+  { id: 'utility', name: '電気・ガス', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
   { id: 'electricity', name: '電気', iconName: 'Zap', color: 'bg-yellow-100 text-yellow-600', hexColor: '#ca8a04' },
   { id: 'gas', name: 'ガス', iconName: 'Flame', color: 'bg-orange-100 text-orange-500', hexColor: '#f97316' },
   { id: 'water', name: '水道代', iconName: 'Droplets', color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
   { id: 'telecom', name: '通信費', iconName: 'Smartphone', color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
   { id: 'transport', name: '交通費', iconName: 'Train', color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
   { id: 'leisure', name: 'レジャー', iconName: 'Smile', color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
+  { id: 'event', name: 'イベント', iconName: 'PartyPopper', color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
   { id: 'beauty', name: '衣服・美容', iconName: 'Scissors', color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
   { id: 'health', name: '医療・健康', iconName: 'Pill', color: 'bg-teal-100 text-teal-600', hexColor: '#0d9488' },
-  { id: 'pet', name: 'ペット', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
+  { id: 'dog', name: 'ペット(犬)', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
   { id: 'advance', name: '立替', iconName: 'Wallet', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
   { id: 'repayment', name: '返済', iconName: 'ArrowRightLeft', color: 'bg-stone-100 text-stone-600', hexColor: '#57534e' },
   { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
