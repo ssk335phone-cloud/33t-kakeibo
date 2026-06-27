@@ -85,18 +85,18 @@ const db = initializeFirestore(app, {
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : '33t-kakeibo';
 
+// 🔒 お二人だけの秘密の合言葉
+const SECRET_PASSPHRASE = "!1214083120190322";
+
 const txCollection = collection(db, 'artifacts', appId, 'public', 'data', 'transactions');
 const fixedCollection = collection(db, 'artifacts', appId, 'public', 'data', 'fixedExpenses');
 const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'appSettings', 'general');
-
-// 🔒 お二人だけの秘密の合言葉
-const SECRET_PASSPHRASE = "!1214083120190322";
 
 // --- アイコンとカラーの設定 ---
 const ICON_MAP = {
   Utensils, ShoppingCart, HomeIcon, Zap, Heart, Train, MoreHorizontal,
   Coffee, Droplets, Smartphone, Dog, PartyPopper, Car, Plane, Gift, 
-  Monitor, Book, Music, Film, Scissors, Shirt, Pill, Smile, Baby, Flame
+  Monitor, Book, Music, Film, Scissors, Shirt, Pill, Smile, Baby, Flame, Wallet, ArrowRightLeft
 };
 
 const COLOR_PRESETS = [
@@ -116,8 +116,10 @@ const COLOR_PRESETS = [
   { color: 'bg-teal-100 text-teal-600', hexColor: '#0d9488' },
   { color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
   { color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
+  { color: 'bg-stone-100 text-stone-600', hexColor: '#57534e' },
 ];
 
+// 💡 16個のカテゴリをデフォルト化（立替と返済を追加）
 const DEFAULT_CATEGORIES = [
   { id: 'food', name: '食費', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', hexColor: '#ea580c' },
   { id: 'eatout', name: '外食費', iconName: 'Coffee', color: 'bg-red-100 text-red-600', hexColor: '#dc2626' },
@@ -127,10 +129,13 @@ const DEFAULT_CATEGORIES = [
   { id: 'gas', name: 'ガス', iconName: 'Flame', color: 'bg-orange-100 text-orange-500', hexColor: '#f97316' },
   { id: 'water', name: '水道代', iconName: 'Droplets', color: 'bg-cyan-100 text-cyan-600', hexColor: '#0891b2' },
   { id: 'telecom', name: '通信費', iconName: 'Smartphone', color: 'bg-indigo-100 text-indigo-600', hexColor: '#4f46e5' },
-  { id: 'dog', name: 'お犬', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
-  { id: 'event', name: 'イベント', iconName: 'PartyPopper', color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
-  { id: 'leisure', name: 'レジャー費', iconName: 'Smile', color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
-  { id: 'transport', name: '交通・車両費', iconName: 'Train', color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
+  { id: 'transport', name: '交通費', iconName: 'Train', color: 'bg-sky-100 text-sky-600', hexColor: '#0284c7' },
+  { id: 'leisure', name: 'レジャー', iconName: 'Smile', color: 'bg-pink-100 text-pink-600', hexColor: '#db2777' },
+  { id: 'beauty', name: '衣服・美容', iconName: 'Scissors', color: 'bg-fuchsia-100 text-fuchsia-600', hexColor: '#c026d3' },
+  { id: 'health', name: '医療・健康', iconName: 'Pill', color: 'bg-teal-100 text-teal-600', hexColor: '#0d9488' },
+  { id: 'pet', name: 'ペット', iconName: 'Dog', color: 'bg-amber-100 text-amber-600', hexColor: '#d97706' },
+  { id: 'advance', name: '立替', iconName: 'Wallet', color: 'bg-blue-100 text-blue-600', hexColor: '#2563eb' },
+  { id: 'repayment', name: '返済', iconName: 'ArrowRightLeft', color: 'bg-stone-100 text-stone-600', hexColor: '#57534e' },
   { id: 'other', name: 'その他', iconName: 'MoreHorizontal', color: 'bg-gray-200 text-gray-700', hexColor: '#4b5563' },
 ];
 
@@ -175,7 +180,6 @@ const getMonthDateRange = (yearMonth, closingDate) => {
   }
 };
 
-// 💡 電卓機能（数式文字列の評価）
 const evaluateAmount = (expr) => {
   try {
     const halfExpr = String(expr).replace(/[＋－＊／＝]/g, s => ({'＋':'+', '－':'-', '＊':'*', '／':'/', '＝':'='}[s]))
@@ -715,11 +719,11 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
   const [customUser1Ratio, setCustomUser1Ratio] = useState(settings.user1Ratio);
   const [customUser1Amount, setCustomUser1Amount] = useState('');
 
+  // 過去データの互換性維持のためStateとしては残す
   const [hasDebt, setHasDebt] = useState(false);
   const [debtType, setDebtType] = useState('borrow'); 
   const [debtAmount, setDebtAmount] = useState('');
 
-  // 💡 フォーカス維持のための参照
   const amountInputRef = useRef(null);
 
   const memoSuggestions = useMemo(() => {
@@ -793,7 +797,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     }
   }, [isEdit, txToEdit, copyTemplate, selectedDateForNewTx, settings.user1Ratio, defaultCategoryId, currentUserType]);
 
-  // 💡 金額入力欄に対するボタンアクション処理
   const handleAmountAction = (action) => {
     if (action === 'calc') {
       setAmount((prev) => evaluateAmount(prev));
@@ -803,7 +806,7 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
       setAmount((prev) => prev + action);
     }
     
-    // アクション後にフォーカスを戻す（維持する）
+    // アクション後に入力欄へフォーカスを維持
     setTimeout(() => {
       amountInputRef.current?.focus();
     }, 0);
@@ -819,7 +822,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
     }
     
     setAmount(finalAmountStr);
-
     setIsSaving(true);
     try {
       const payload = {
@@ -828,13 +830,10 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
         paidBy,
         categoryId,
         memo,
-        isCustomSplit,
-        customSplitMode: isCustomSplit ? customSplitMode : null,
-        customUser1Ratio: (isCustomSplit && customSplitMode === 'ratio') ? Number(customUser1Ratio) : null,
-        customUser1Amount: (isCustomSplit && customSplitMode === 'amount') ? Number(customUser1Amount) : null,
-        hasDebt,
-        debtType: hasDebt ? debtType : null,
-        debtAmount: hasDebt ? Number(debtAmount) : null,
+        isCustomSplit: (categoryId === 'repayment' || categoryId === 'advance') ? false : isCustomSplit,
+        customSplitMode: (isCustomSplit && categoryId !== 'repayment' && categoryId !== 'advance') ? customSplitMode : null,
+        customUser1Ratio: (isCustomSplit && customSplitMode === 'ratio' && categoryId !== 'repayment' && categoryId !== 'advance') ? Number(customUser1Ratio) : null,
+        customUser1Amount: (isCustomSplit && customSplitMode === 'amount' && categoryId !== 'repayment' && categoryId !== 'advance') ? Number(customUser1Amount) : null,
       };
 
       if (isEdit) {
@@ -859,8 +858,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           setCustomSplitMode('ratio');
           setCustomUser1Ratio(settings.user1Ratio);
           setCustomUser1Amount('');
-          setHasDebt(false);
-          setDebtAmount('');
           setShowAdvanced(false);
           const mainArea = document.getElementById('main-scroll-area');
           if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
@@ -920,7 +917,6 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              onBlur={() => setAmount(prev => evaluateAmount(prev))}
               placeholder="0"
               className="w-full pl-10 pr-4 py-4 text-right text-2xl sm:text-3xl font-bold bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-sm"
             />
@@ -944,21 +940,13 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
             >
               －
             </button>
-            <button 
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onTouchStart={(e) => e.preventDefault()}
-              onClick={() => handleAmountAction('calc')}
-              className="flex-[1.5] py-2 bg-teal-50 border border-teal-200 rounded-lg text-sm font-bold text-teal-700 hover:bg-teal-100 active:bg-teal-200 transition-colors shadow-sm flex items-center justify-center gap-1"
-            >
-              <Calculator size={14} /> 計算
-            </button>
+            {/* 💡 保存時に自動計算されるため「＝」ボタンは削除しスッキリさせました */}
             <button 
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onTouchStart={(e) => e.preventDefault()}
               onClick={() => handleAmountAction('clear')}
-              className="flex-1 py-1.5 bg-rose-50 border border-rose-100 rounded-lg text-sm font-bold text-rose-600 hover:bg-rose-100 active:bg-rose-200 transition-colors shadow-sm"
+              className="flex-[1.5] py-1.5 bg-rose-50 border border-rose-100 rounded-lg text-sm font-bold text-rose-600 hover:bg-rose-100 active:bg-rose-200 transition-colors shadow-sm"
             >
               クリア
             </button>
@@ -1041,163 +1029,104 @@ const TransactionFormView = ({ mode, editingTx, setEditingTx, copyTemplate, setC
           </div>
         </div>
 
-        <div className="pt-2 border-t border-gray-100">
-          <button 
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center justify-center gap-1 w-full py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            詳細な設定を追加 (立替・個別割り勘)
-            {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          
-          {showAdvanced && (
-            <div className="space-y-4 pt-3 pb-2 animate-in fade-in slide-in-from-top-2">
-              <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 transition-all shadow-sm">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-700 flex items-center gap-2">
-                    個人的な立替・精算を含める
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setHasDebt(!hasDebt)}
-                    className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${hasDebt ? 'bg-orange-500' : 'bg-gray-300'}`}
-                  >
-                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${hasDebt ? 'translate-x-7' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-                
-                {hasDebt && (
-                  <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-orange-200 pt-4">
-                    <div className="flex gap-2 mb-4 p-1 bg-orange-200/50 rounded-xl">
-                      <button 
-                        type="button"
-                        onClick={() => setDebtType('borrow')}
-                        className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'borrow' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
-                      >
-                        {paidBy === 'user1' ? `${users.user2.name}の分を立て替えた` : `${users.user1.name}の分を立て替えた`}
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setDebtType('repay')}
-                        className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${debtType === 'repay' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-600 hover:text-gray-800'}`}
-                      >
-                        立て替えてもらっていた分を返す
-                      </button>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-orange-600 mb-1 text-center">立替・精算に充てる金額</label>
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
-                        <input 
-                          type="number" 
-                          inputMode="numeric"
-                          pattern="\d*"
-                          value={debtAmount} 
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '') { setDebtAmount(''); return; }
-                            const numVal = Number(val);
-                            const maxVal = Number(amount) || 0;
-                            if (numVal > maxVal) setDebtAmount(maxVal.toString());
-                            else setDebtAmount(val);
-                          }}
-                          placeholder="0"
-                          className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-lg"
-                        />
-                      </div>
-                      <p className="text-[9px] text-gray-500 mt-2 text-center">
-                        ※この金額は共同の生活費から除外され、未精算の立替バランスに反映されます。
-                      </p>
-                    </div>
+        {/* 💡 立替や返済が選ばれている時は個別割り勘は不要なので隠す */}
+        {(categoryId !== 'repayment' && categoryId !== 'advance') && (
+          <div className="pt-2 border-t border-gray-100">
+            <button 
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center justify-center gap-1 w-full py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              詳細な設定を追加 (個別割り勘)
+              {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            
+            {showAdvanced && (
+              <div className="space-y-4 pt-3 pb-2 animate-in fade-in slide-in-from-top-2">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-700">この支出だけ割り勘割合を変更する</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomSplit(!isCustomSplit)}
+                      className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${isCustomSplit ? 'bg-teal-500' : 'bg-gray-300'}`}
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${isCustomSplit ? 'translate-x-7' : 'translate-x-1'}`} />
+                    </button>
                   </div>
-                )}
-              </div>
+                  
+                  {isCustomSplit && (
+                    <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-gray-200 pt-4">
+                      <div className="flex gap-2 mb-4 p-1 bg-gray-200/50 rounded-xl">
+                        <button 
+                          type="button"
+                          onClick={() => setCustomSplitMode('ratio')}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'ratio' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          割合(%)で指定
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setCustomSplitMode('amount')}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'amount' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          金額(円)で指定
+                        </button>
+                      </div>
 
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all shadow-sm">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-700">この支出だけ割り勘割合を変更する</label>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomSplit(!isCustomSplit)}
-                    className={`w-12 h-6 rounded-full transition-colors relative flex items-center shadow-inner flex-shrink-0 ml-2 ${isCustomSplit ? 'bg-teal-500' : 'bg-gray-300'}`}
-                  >
-                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${isCustomSplit ? 'translate-x-7' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-                
-                {isCustomSplit && (
-                  <div className="mt-4 animate-in fade-in slide-in-from-top-2 border-t border-gray-200 pt-4">
-                    <div className="flex gap-2 mb-4 p-1 bg-gray-200/50 rounded-xl">
-                      <button 
-                        type="button"
-                        onClick={() => setCustomSplitMode('ratio')}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'ratio' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                        割合(%)で指定
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setCustomSplitMode('amount')}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${customSplitMode === 'amount' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                        金額(円)で指定
-                      </button>
+                      {customSplitMode === 'ratio' ? (
+                        <div>
+                          <div className="flex items-center gap-4 mb-2">
+                            <div className="flex-1 text-center truncate">
+                              <p className="text-[10px] font-bold text-teal-600 mb-1 truncate">{users.user1.name}</p>
+                              <div className="text-xl font-bold text-gray-800">{customUser1Ratio}%</div>
+                            </div>
+                            <span className="font-bold text-gray-300 flex-shrink-0">:</span>
+                            <div className="flex-1 text-center truncate">
+                              <p className="text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name}</p>
+                              <div className="text-xl font-bold text-gray-800">{100 - customUser1Ratio}%</div>
+                            </div>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" max="100" 
+                            value={customUser1Ratio} 
+                            onChange={(e) => setCustomUser1Ratio(Number(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500 mt-2"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-bold text-teal-600 mb-1 text-center truncate">{users.user1.name} (負担額)</label>
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
+                              <input 
+                                type="number" 
+                                inputMode="numeric"
+                                pattern="\d*"
+                                value={customUser1Amount} 
+                                onChange={(e) => setCustomUser1Amount(e.target.value)}
+                                placeholder="0"
+                                className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg"
+                              />
+                            </div>
+                          </div>
+                          <span className="font-bold text-gray-300 mt-4 flex-shrink-0">:</span>
+                          <div className="flex-1 text-center min-w-0">
+                            <label className="block text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name} (残り)</label>
+                            <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end truncate">
+                              ¥{Math.max(0, (Number(amount) || 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {customSplitMode === 'ratio' ? (
-                      <div>
-                        <div className="flex items-center gap-4 mb-2">
-                          <div className="flex-1 text-center truncate">
-                            <p className="text-[10px] font-bold text-teal-600 mb-1 truncate">{users.user1.name}</p>
-                            <div className="text-xl font-bold text-gray-800">{customUser1Ratio}%</div>
-                          </div>
-                          <span className="font-bold text-gray-300 flex-shrink-0">:</span>
-                          <div className="flex-1 text-center truncate">
-                            <p className="text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name}</p>
-                            <div className="text-xl font-bold text-gray-800">{100 - customUser1Ratio}%</div>
-                          </div>
-                        </div>
-                        <input 
-                          type="range" 
-                          min="0" max="100" 
-                          value={customUser1Ratio} 
-                          onChange={(e) => setCustomUser1Ratio(Number(e.target.value))}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500 mt-2"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <label className="block text-[10px] font-bold text-teal-600 mb-1 text-center truncate">{users.user1.name} (負担額)</label>
-                          <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">¥</span>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              pattern="\d*"
-                              value={customUser1Amount} 
-                              onChange={(e) => setCustomUser1Amount(e.target.value)}
-                              placeholder="0"
-                              className="w-full pl-6 pr-2 py-2 text-right font-bold bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg"
-                            />
-                          </div>
-                        </div>
-                        <span className="font-bold text-gray-300 mt-4 flex-shrink-0">:</span>
-                        <div className="flex-1 text-center min-w-0">
-                          <label className="block text-[10px] font-bold text-rose-500 mb-1 truncate">{users.user2.name} (残り)</label>
-                          <div className="w-full py-2 bg-gray-100 border border-gray-100 rounded-xl text-gray-500 font-bold text-right pr-3 text-lg h-11 flex items-center justify-end truncate">
-                            ¥{Math.max(0, (Number(amount) || 0) - (hasDebt ? Number(debtAmount) || 0 : 0) - (Number(customUser1Amount) || 0)).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {existingTransactions.length > 0 && (
           <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
@@ -1692,7 +1621,9 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
 
       let total = 0;
       transactions.forEach(t => {
-        if (!t.date) return;
+        // 立替と返済はレポート（共同生活費）の計算から除外
+        if (!t.date || t.categoryId === 'repayment' || t.categoryId === 'advance') return;
+        
         let effectiveAmount = t.amount;
         if (t.hasDebt && t.debtAmount) effectiveAmount = Math.max(0, t.amount - t.debtAmount);
         
@@ -1730,7 +1661,9 @@ const ReportView = ({ transactions, selectedMonth, setSelectedMonth, settings, c
       let currTotal = 0;
 
       transactions.forEach(t => {
-        if (!t.date) return;
+        // 立替と返済はレポート（共同生活費）の計算から除外
+        if (!t.date || t.categoryId === 'repayment' || t.categoryId === 'advance') return;
+        
         let effectiveAmount = t.amount;
         if (t.hasDebt && t.debtAmount) effectiveAmount = Math.max(0, t.amount - t.debtAmount);
         
@@ -2646,12 +2579,19 @@ export default function App() {
     return [...transactions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 3);
   }, [transactions]);
 
+  // 💡 借金（未精算バランス）の計算ロジック（立替・返済カテゴリを反映）
   const u1NetDebt = useMemo(() => {
     let debt = settings.initialDebt || 0; 
     transactions.forEach(t => {
+      // 古い互換ロジック
       if (t.hasDebt && t.debtAmount) {
         if (t.paidBy === 'user1') debt -= t.debtAmount;
         else debt += t.debtAmount;
+      }
+      // 新しいロジック（立替や返済が選ばれた場合）
+      if (t.categoryId === 'repayment' || t.categoryId === 'advance') {
+        if (t.paidBy === 'user1') debt -= t.amount;
+        else debt += t.amount;
       }
     });
     return debt;
@@ -2810,6 +2750,9 @@ export default function App() {
     let customU2TargetSum = 0;
 
     currentMonthTransactions.forEach(t => {
+      // 💡 立替と返済は「共同生活費」の計算や折半から除外する
+      if (t.categoryId === 'repayment' || t.categoryId === 'advance') return;
+
       let effectiveAmount = t.amount;
       if (t.hasDebt && t.debtAmount) {
         effectiveAmount = Math.max(0, t.amount - t.debtAmount);
